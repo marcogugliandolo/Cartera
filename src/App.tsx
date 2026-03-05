@@ -116,8 +116,10 @@ export default function App() {
   // Form states
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showGoalForm, setShowGoalForm] = useState(false);
+  const [showUserForm, setShowUserForm] = useState(false);
   const [newExpense, setNewExpense] = useState({ amount: '', description: '', category_id: '', date: format(new Date(), 'yyyy-MM-dd') });
   const [newGoal, setNewGoal] = useState({ name: '', target_amount: '', deadline: '' });
+  const [newUser, setNewUser] = useState({ username: '', password: '' });
 
   useEffect(() => {
     checkAuth();
@@ -436,6 +438,23 @@ export default function App() {
     }
   };
 
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newUser)
+      });
+      if (res.ok) {
+        setNewUser({ username: '', password: '' });
+        setShowUserForm(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleUpdateGoalProgress = async (id: number, current: number, increment: number) => {
     if (!user) return;
     try {
@@ -476,12 +495,22 @@ export default function App() {
       return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
     });
 
-    const total = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const currentMonthRecurring = recurringExpenses.filter(r => {
+      const nextDate = parseISO(r.next_date);
+      return nextDate.getMonth() === selectedMonth && nextDate.getFullYear() === selectedYear;
+    });
+
+    const total = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0) + 
+                  currentMonthRecurring.reduce((sum, r) => sum + r.amount, 0);
     
     const byCategory = currentMonthExpenses.reduce((acc, e) => {
       acc[e.category_name] = (acc[e.category_name] || 0) + e.amount;
       return acc;
     }, {} as Record<string, number>);
+
+    currentMonthRecurring.forEach(r => {
+      byCategory[r.category_name] = (byCategory[r.category_name] || 0) + r.amount;
+    });
 
     const chartData = Object.entries(byCategory).map(([name, value]) => ({
       name,
@@ -490,9 +519,10 @@ export default function App() {
     }));
 
     return { total, chartData };
-  }, [expenses, selectedMonth, selectedYear, categories]);
+  }, [searchFilteredExpenses, recurringExpenses, selectedMonth, selectedYear, categories]);
 
-  const totalExpenses = searchFilteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenses = searchFilteredExpenses.reduce((sum, e) => sum + e.amount, 0) + 
+                        recurringExpenses.reduce((sum, r) => sum + r.amount, 0);
   const monthlyExpenses = monthlyStats.total;
   const categoryData = monthlyStats.chartData;
 
@@ -539,7 +569,7 @@ export default function App() {
               <div className="p-4 bg-emerald-600 rounded-2xl text-white mb-4 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20">
                 <Wallet size={32} />
               </div>
-              <h1 className="text-3xl font-black tracking-tight text-stone-900 dark:text-stone-100">Ahorra</h1>
+              <h1 className="text-3xl font-black tracking-tight text-stone-900 dark:text-stone-100">Cartera</h1>
               <p className="text-stone-400 dark:text-stone-500 text-sm mt-2">Gestiona tus finanzas con inteligencia</p>
             </div>
 
@@ -614,7 +644,7 @@ export default function App() {
             <div className="p-2 bg-emerald-600 rounded-xl text-white">
               <Wallet size={24} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Ahorra</h1>
+            <h1 className="text-xl font-bold tracking-tight">Cartera</h1>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -631,6 +661,15 @@ export default function App() {
             >
               <LogOut size={20} />
             </button>
+            {user?.username === 'gugliama' && (
+              <button 
+                onClick={() => setShowUserForm(true)}
+                className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-sm active:scale-95"
+              >
+                <UserIcon size={20} />
+                <span className="hidden sm:inline">Nuevo Usuario</span>
+              </button>
+            )}
             <button 
               onClick={() => setShowExpenseForm(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-sm active:scale-95"
@@ -994,8 +1033,8 @@ export default function App() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {categories.map(cat => {
-                  const spent = expenses
-                    .filter(e => e.category_id === cat.id && parseISO(e.date).getMonth() === selectedMonth)
+                  const spent = searchFilteredExpenses
+                    .filter(e => e.category_id === cat.id && parseISO(e.date).getMonth() === selectedMonth && parseISO(e.date).getFullYear() === selectedYear)
                     .reduce((sum, e) => sum + e.amount, 0);
                   const percentage = cat.budget > 0 ? Math.min((spent / cat.budget) * 100, 100) : 0;
                   const isOver = cat.budget > 0 && spent > cat.budget;
@@ -1340,6 +1379,66 @@ export default function App() {
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20 transition-all active:scale-95"
                   >
                     Crear Meta
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* User Modal */}
+      <AnimatePresence>
+        {showUserForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowUserForm(false)}
+              className="absolute inset-0 bg-stone-900/40 dark:bg-stone-950/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white dark:bg-stone-900 w-full max-w-md rounded-3xl shadow-2xl p-8"
+            >
+              <h2 className="text-2xl font-bold mb-6 text-stone-900 dark:text-stone-100">Nuevo Usuario</h2>
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-1">Usuario</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newUser.username}
+                    onChange={e => setNewUser({...newUser, username: e.target.value})}
+                    className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-xl p-4 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-1">Contraseña</label>
+                  <input 
+                    type="password" 
+                    required
+                    value={newUser.password}
+                    onChange={e => setNewUser({...newUser, password: e.target.value})}
+                    className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-xl p-4 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowUserForm(false)}
+                    className="flex-1 py-4 rounded-xl font-bold text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20 transition-all active:scale-95"
+                  >
+                    Registrar
                   </button>
                 </div>
               </form>
