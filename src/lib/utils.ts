@@ -43,3 +43,10 @@ export interface Goal {
   current_amount: number;
   deadline: string;
 }
+
+export interface Income {
+  id: number;
+  amount: number;
+  description: string;
+  date: string;
+}
