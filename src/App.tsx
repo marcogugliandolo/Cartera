@@ -31,7 +31,8 @@ import {
   X,
   Camera,
   RefreshCw,
-  ArrowRight
+  ArrowRight,
+  LayoutDashboard
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -74,25 +75,54 @@ const ICON_MAP: Record<string, any> = {
 
 const DEFAULT_LAYOUTS = {
   lg: [
-    { i: 'charts', x: 0, y: 0, w: 8, h: 4 },
-    { i: 'goals', x: 0, y: 4, w: 8, h: 3 },
-    { i: 'budgets', x: 0, y: 7, w: 4, h: 4 },
-    { i: 'recurring', x: 4, y: 7, w: 4, h: 4 },
-    { i: 'sidebar', x: 8, y: 0, w: 4, h: 11 },
+    { i: 'summary-total', x: 0, y: 0, w: 4, h: 2 },
+    { i: 'summary-month', x: 4, y: 0, w: 4, h: 2 },
+    { i: 'summary-goals', x: 8, y: 0, w: 4, h: 2 },
+    { i: 'charts', x: 0, y: 2, w: 8, h: 4 },
+    { i: 'goals', x: 0, y: 6, w: 8, h: 3 },
+    { i: 'budgets', x: 0, y: 9, w: 4, h: 4 },
+    { i: 'recurring', x: 4, y: 9, w: 4, h: 4 },
+    { i: 'sidebar', x: 8, y: 2, w: 4, h: 11 },
   ],
   md: [
-    { i: 'charts', x: 0, y: 0, w: 10, h: 4 },
-    { i: 'goals', x: 0, y: 4, w: 10, h: 3 },
-    { i: 'budgets', x: 0, y: 7, w: 5, h: 4 },
-    { i: 'recurring', x: 5, y: 7, w: 5, h: 4 },
-    { i: 'sidebar', x: 0, y: 11, w: 10, h: 8 },
+    { i: 'summary-total', x: 0, y: 0, w: 3, h: 2 },
+    { i: 'summary-month', x: 3, y: 0, w: 4, h: 2 },
+    { i: 'summary-goals', x: 7, y: 0, w: 3, h: 2 },
+    { i: 'charts', x: 0, y: 2, w: 10, h: 4 },
+    { i: 'goals', x: 0, y: 6, w: 10, h: 3 },
+    { i: 'budgets', x: 0, y: 9, w: 5, h: 4 },
+    { i: 'recurring', x: 5, y: 9, w: 5, h: 4 },
+    { i: 'sidebar', x: 0, y: 13, w: 10, h: 8 },
   ],
   sm: [
-    { i: 'charts', x: 0, y: 0, w: 6, h: 4 },
-    { i: 'goals', x: 0, y: 4, w: 6, h: 4 },
-    { i: 'budgets', x: 0, y: 8, w: 6, h: 4 },
-    { i: 'recurring', x: 0, y: 12, w: 6, h: 4 },
-    { i: 'sidebar', x: 0, y: 16, w: 6, h: 8 },
+    { i: 'summary-total', x: 0, y: 0, w: 2, h: 2 },
+    { i: 'summary-month', x: 2, y: 0, w: 2, h: 2 },
+    { i: 'summary-goals', x: 4, y: 0, w: 2, h: 2 },
+    { i: 'charts', x: 0, y: 2, w: 6, h: 4 },
+    { i: 'goals', x: 0, y: 6, w: 6, h: 4 },
+    { i: 'budgets', x: 0, y: 10, w: 6, h: 4 },
+    { i: 'recurring', x: 0, y: 14, w: 6, h: 4 },
+    { i: 'sidebar', x: 0, y: 18, w: 6, h: 8 },
+  ],
+  xs: [
+    { i: 'summary-total', x: 0, y: 0, w: 4, h: 2 },
+    { i: 'summary-month', x: 0, y: 2, w: 4, h: 2 },
+    { i: 'summary-goals', x: 0, y: 4, w: 4, h: 2 },
+    { i: 'charts', x: 0, y: 6, w: 4, h: 4 },
+    { i: 'goals', x: 0, y: 10, w: 4, h: 4 },
+    { i: 'budgets', x: 0, y: 14, w: 4, h: 4 },
+    { i: 'recurring', x: 0, y: 18, w: 4, h: 4 },
+    { i: 'sidebar', x: 0, y: 22, w: 4, h: 8 },
+  ],
+  xxs: [
+    { i: 'summary-total', x: 0, y: 0, w: 2, h: 2 },
+    { i: 'summary-month', x: 0, y: 2, w: 2, h: 2 },
+    { i: 'summary-goals', x: 0, y: 4, w: 2, h: 2 },
+    { i: 'charts', x: 0, y: 6, w: 2, h: 4 },
+    { i: 'goals', x: 0, y: 10, w: 2, h: 4 },
+    { i: 'budgets', x: 0, y: 14, w: 2, h: 4 },
+    { i: 'recurring', x: 0, y: 18, w: 2, h: 4 },
+    { i: 'sidebar', x: 0, y: 22, w: 2, h: 8 },
   ]
 };
 
@@ -196,6 +226,13 @@ export default function App() {
     setLayouts(allLayouts);
     if (user) {
       localStorage.setItem(`dashboard_layout_${user.id}`, JSON.stringify(allLayouts));
+    }
+  };
+
+  const resetLayout = () => {
+    setLayouts(DEFAULT_LAYOUTS);
+    if (user) {
+      localStorage.removeItem(`dashboard_layout_${user.id}`);
     }
   };
 
@@ -702,7 +739,7 @@ export default function App() {
 
   return (
     <div className={cn(darkMode && "dark")}>
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans pb-20 transition-colors duration-300">
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans pb-20 transition-colors duration-300 overflow-x-hidden">
         {/* Header */}
         <header className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 sticky top-0 z-10 px-4 py-4 sm:px-6">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
@@ -713,6 +750,14 @@ export default function App() {
             <h1 className="text-xl font-bold tracking-tight">Cartera</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={resetLayout}
+              className="p-2 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
+              title="Restaurar diseño por defecto"
+              aria-label="Restaurar diseño"
+            >
+              <LayoutDashboard size={20} />
+            </button>
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="p-2 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
@@ -827,60 +872,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Summary Cards - Refined */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-emerald-600 dark:bg-emerald-700 p-5 rounded-3xl shadow-lg hover:shadow-xl transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-emerald-500/30 text-white rounded-xl">
-                <TrendingUp size={18} />
-              </div>
-              <span className="text-emerald-50 text-sm font-bold uppercase tracking-wider">Gasto Total</span>
-            </div>
-            <div className="text-5xl font-black tracking-tighter text-white">{totalExpenses.toLocaleString()}€</div>
-            <div className="text-emerald-100/80 text-[10px] mt-1 font-medium">Desde el inicio</div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-3xl border border-emerald-200/30 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                <Calendar size={18} />
-              </div>
-              <span className="text-emerald-700 dark:text-emerald-300 text-sm font-bold uppercase tracking-wider">Este Mes</span>
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100">{monthlyExpenses.toLocaleString()}€</div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-[10px] mt-1 font-medium capitalize">
-              {format(new Date(selectedYear, selectedMonth), 'MMMM yyyy', { locale: es })}
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-3xl border border-emerald-200/30 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                <Target size={18} />
-              </div>
-              <span className="text-emerald-700 dark:text-emerald-300 text-sm font-bold uppercase tracking-wider">Metas Activas</span>
-            </div>
-            <div className="text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100">{goals.length}</div>
-            <div className="text-emerald-600/70 dark:text-emerald-400/70 text-[10px] mt-1 font-medium">Objetivos de ahorro</div>
-          </motion.div>
-
-        </div>
-
-        <div ref={containerRef}>
+        <div ref={containerRef} className="w-full">
           {mounted && (
             <Responsive
               className="layout"
@@ -892,7 +884,55 @@ export default function App() {
               width={width}
               draggableHandle=".drag-handle"
               margin={[24, 24]}
+              containerPadding={[0, 0]}
             >
+              {/* Summary Total */}
+              <div key="summary-total" className="bg-emerald-600 dark:bg-emerald-700 p-5 rounded-3xl shadow-lg hover:shadow-xl transition-shadow flex flex-col justify-center relative">
+                <div className="drag-handle cursor-move absolute top-2 right-2 p-2 text-emerald-200 hover:text-white z-10">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-emerald-500/30 text-white rounded-xl">
+                    <TrendingUp size={18} />
+                  </div>
+                  <span className="text-emerald-50 text-sm font-bold uppercase tracking-wider">Gasto Total</span>
+                </div>
+                <div className="text-4xl sm:text-5xl font-black tracking-tighter text-white truncate">{totalExpenses.toLocaleString()}€</div>
+                <div className="text-emerald-100/80 text-[10px] mt-1 font-medium">Desde el inicio</div>
+              </div>
+
+              {/* Summary Month */}
+              <div key="summary-month" className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-3xl border border-emerald-200/30 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center relative">
+                <div className="drag-handle cursor-move absolute top-2 right-2 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <Calendar size={18} />
+                  </div>
+                  <span className="text-emerald-700 dark:text-emerald-300 text-sm font-bold uppercase tracking-wider">Este Mes</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100 truncate">{monthlyExpenses.toLocaleString()}€</div>
+                <div className="text-emerald-600/70 dark:text-emerald-400/70 text-[10px] mt-1 font-medium capitalize">
+                  {format(new Date(selectedYear, selectedMonth), 'MMMM yyyy', { locale: es })}
+                </div>
+              </div>
+
+              {/* Summary Goals */}
+              <div key="summary-goals" className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-3xl border border-emerald-200/30 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center relative">
+                <div className="drag-handle cursor-move absolute top-2 right-2 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <Target size={18} />
+                  </div>
+                  <span className="text-emerald-700 dark:text-emerald-300 text-sm font-bold uppercase tracking-wider">Metas Activas</span>
+                </div>
+                <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100">{goals.length}</div>
+                <div className="text-emerald-600/70 dark:text-emerald-400/70 text-[10px] mt-1 font-medium">Objetivos de ahorro</div>
+              </div>
+
               {/* Charts Card */}
               <div key="charts" className="bg-white/60 dark:bg-stone-900/60 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/40 dark:border-stone-800/40 shadow-xl shadow-stone-200/20 dark:shadow-none hover:border-emerald-500/30 transition-all duration-500 flex flex-col h-full overflow-hidden relative">
                 <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
