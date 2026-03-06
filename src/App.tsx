@@ -45,6 +45,9 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
+import { Responsive, useContainerWidth } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Markdown from 'react-markdown';
@@ -86,12 +89,29 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [activeChartTab, setActiveChartTab] = useState<'categories' | 'trend'>('categories');
-  const [layout, setLayout] = useState({
+  const { width, containerRef, mounted } = useContainerWidth();
+  const [layouts, setLayouts] = useState({
     lg: [
       { i: 'charts', x: 0, y: 0, w: 8, h: 4 },
-      { i: 'goals', x: 0, y: 4, w: 8, h: 4 },
-      { i: 'sidebar', x: 8, y: 0, w: 4, h: 8 },
+      { i: 'goals', x: 0, y: 4, w: 8, h: 3 },
+      { i: 'budgets', x: 0, y: 7, w: 4, h: 4 },
+      { i: 'recurring', x: 4, y: 7, w: 4, h: 4 },
+      { i: 'sidebar', x: 8, y: 0, w: 4, h: 11 },
     ],
+    md: [
+      { i: 'charts', x: 0, y: 0, w: 10, h: 4 },
+      { i: 'goals', x: 0, y: 4, w: 10, h: 3 },
+      { i: 'budgets', x: 0, y: 7, w: 5, h: 4 },
+      { i: 'recurring', x: 5, y: 7, w: 5, h: 4 },
+      { i: 'sidebar', x: 0, y: 11, w: 10, h: 8 },
+    ],
+    sm: [
+      { i: 'charts', x: 0, y: 0, w: 6, h: 4 },
+      { i: 'goals', x: 0, y: 4, w: 6, h: 4 },
+      { i: 'budgets', x: 0, y: 8, w: 6, h: 4 },
+      { i: 'recurring', x: 0, y: 12, w: 6, h: 4 },
+      { i: 'sidebar', x: 0, y: 16, w: 6, h: 8 },
+    ]
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -822,402 +842,427 @@ export default function App() {
 
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Content Area - Bento Grid */}
-          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Charts Card - Spanning 2 columns */}
-            <div className="md:col-span-2 bg-white/60 dark:bg-stone-900/60 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/40 dark:border-stone-800/40 shadow-xl shadow-stone-200/20 dark:shadow-none hover:border-emerald-500/30 transition-all duration-500">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight text-stone-950 dark:text-stone-50">
-                    {activeChartTab === 'categories' ? 'Distribución de Gastos' : 'Tendencia de Gastos'}
-                  </h3>
-                  <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">
-                    {activeChartTab === 'categories' ? 'Análisis visual por categorías' : 'Gastos totales últimos 12 meses'}
-                  </p>
+        <div ref={containerRef}>
+          {mounted && (
+            <Responsive
+              className="layout"
+              layouts={layouts}
+              breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+              cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+              rowHeight={100}
+              onLayoutChange={(layout, newLayouts) => setLayouts(newLayouts)}
+              width={width}
+              draggableHandle=".drag-handle"
+              margin={[24, 24]}
+            >
+              {/* Charts Card */}
+              <div key="charts" className="bg-white/60 dark:bg-stone-900/60 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/40 dark:border-stone-800/40 shadow-xl shadow-stone-200/20 dark:shadow-none hover:border-emerald-500/30 transition-all duration-500 flex flex-col h-full overflow-hidden relative">
+                <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
+                  <MoreHorizontal size={20} />
                 </div>
-                <div className="flex bg-stone-100/50 dark:bg-stone-800/50 p-1 rounded-2xl self-start border border-stone-200/50 dark:border-stone-700/50">
-                  <button 
-                    onClick={() => setActiveChartTab('categories')}
-                    className={cn(
-                      "px-5 py-2 text-xs font-bold rounded-xl transition-all",
-                      activeChartTab === 'categories' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-                    )}
-                  >
-                    Categorías
-                  </button>
-                  <button 
-                    onClick={() => setActiveChartTab('trend')}
-                    className={cn(
-                      "px-5 py-2 text-xs font-bold rounded-xl transition-all",
-                      activeChartTab === 'trend' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
-                    )}
-                  >
-                    Tendencia
-                  </button>
-                </div>
-              </div>
-              
-              <div className="h-64 sm:h-72">
-                {activeChartTab === 'categories' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full">
-                    <div className="h-full">
-                      {categoryData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={categoryData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={70}
-                              outerRadius={90}
-                              paddingAngle={8}
-                              dataKey="value"
-                              stroke="none"
-                            >
-                              {categoryData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              contentStyle={{ 
-                                borderRadius: '16px', 
-                                border: 'none', 
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.05)', 
-                                padding: '12px',
-                                backgroundColor: darkMode ? '#1c1917' : '#ffffff',
-                                color: darkMode ? '#f5f5f4' : '#1c1917'
-                              }}
-                              itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                              formatter={(value: number) => [`${value.toLocaleString()}€`, 'Total']}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-stone-300 dark:text-stone-700 gap-2">
-                          <PieChartIcon size={48} strokeWidth={1} />
-                          <span className="text-sm italic">Sin datos suficientes</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-3 max-h-full overflow-y-auto pr-2 custom-scrollbar">
-                      {categoryData.length > 0 ? categoryData.map((cat, i) => (
-                        <div key={i} className="flex items-center justify-between group">
-                          <div className="flex items-center gap-3">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                            <span className="text-sm font-medium text-stone-600 dark:text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100 transition-colors">{cat.name}</span>
-                          </div>
-                          <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{cat.value.toLocaleString()}€</div>
-                        </div>
-                      )) : (
-                        <div className="text-stone-400 dark:text-stone-500 text-xs text-center">Registra gastos para ver el desglose</div>
-                      )}
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 pr-12">
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight text-stone-950 dark:text-stone-50">
+                      {activeChartTab === 'categories' ? 'Distribución de Gastos' : 'Tendencia de Gastos'}
+                    </h3>
+                    <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">
+                      {activeChartTab === 'categories' ? 'Análisis visual por categorías' : 'Gastos totales últimos 12 meses'}
+                    </p>
                   </div>
-                ) : (
-                  <div className="h-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={trendData}>
-                        <XAxis 
-                          dataKey="name" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fontSize: 10, fontWeight: 'bold', fill: darkMode ? '#78716c' : '#a8a29e' }}
-                          dy={10}
-                        />
-                        <YAxis hide />
-                        <Tooltip 
-                          cursor={{ fill: darkMode ? '#292524' : '#f5f5f4', radius: 12 }}
-                          contentStyle={{ 
-                            borderRadius: '16px', 
-                            border: 'none', 
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.05)', 
-                            padding: '12px',
-                            backgroundColor: darkMode ? '#1c1917' : '#ffffff',
-                            color: darkMode ? '#f5f5f4' : '#1c1917'
-                          }}
-                          itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#059669' }}
-                          labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: darkMode ? '#78716c' : '#a8a29e', marginBottom: '4px' }}
-                          labelFormatter={(label, payload) => payload[0]?.payload?.fullDate || label}
-                          formatter={(value: number) => [`${value.toLocaleString()}€`, 'Gasto']}
-                        />
-                        <Bar 
-                          dataKey="total" 
-                          fill="#10b981" 
-                          radius={[6, 6, 6, 6]} 
-                          barSize={24}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Savings Goals - Refined Grid */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-2">
-                <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Metas de Ahorro</h3>
-                <button 
-                  onClick={() => setShowGoalForm(true)}
-                  className="text-emerald-600 hover:text-emerald-700 text-sm font-bold flex items-center gap-1.5"
-                >
-                  <Plus size={18} /> Nueva Meta
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {goals.length > 0 ? goals.map(goal => {
-                  const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
-                  return (
-                    <motion.div 
-                      layout
-                      key={goal.id} 
-                      className="bg-white/60 dark:bg-stone-900/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/40 dark:border-stone-800/40 shadow-lg shadow-stone-200/10 dark:shadow-none space-y-4 hover:border-emerald-500/30 transition-all duration-500"
+                  <div className="flex bg-stone-100/50 dark:bg-stone-800/50 p-1 rounded-2xl self-start border border-stone-200/50 dark:border-stone-700/50">
+                    <button 
+                      onClick={() => setActiveChartTab('categories')}
+                      className={cn(
+                        "px-5 py-2 text-xs font-bold rounded-xl transition-all",
+                        activeChartTab === 'categories' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
+                      )}
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-bold text-stone-800 dark:text-stone-200">{goal.name}</h4>
-                          <p className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-widest mt-0.5">
-                            {goal.deadline ? format(parseISO(goal.deadline), 'dd MMM yyyy', { locale: es }) : 'Sin fecha'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-black text-emerald-600 dark:text-emerald-500">{Math.round(progress)}%</div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="h-2.5 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            className="h-full bg-emerald-500 rounded-full"
-                          />
-                        </div>
-                        <div className="flex justify-between text-[11px] font-bold">
-                          <span className="text-stone-400 dark:text-stone-500">{goal.current_amount.toLocaleString()}€</span>
-                          <span className="text-stone-800 dark:text-stone-200">Objetivo: {goal.target_amount.toLocaleString()}€</span>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 pt-2">
-                        <button 
-                          onClick={() => handleUpdateGoalProgress(goal.id, goal.current_amount, 50)}
-                          className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-stone-50 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
-                        >
-                          +50€
-                        </button>
-                        <button 
-                          onClick={() => handleUpdateGoalProgress(goal.id, goal.current_amount, 100)}
-                          className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-stone-50 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
-                        >
-                          +100€
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                }) : (
-                  <div className="col-span-2 bg-stone-100/50 dark:bg-stone-900/50 border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-[2rem] py-12 flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 gap-3">
-                    <Target size={40} strokeWidth={1} />
-                    <p className="text-sm font-medium italic">Establece tu primera meta de ahorro</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Budgets & Recurring */}
-            <div className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-stone-200/60 dark:border-stone-800 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Presupuestos por Categoría</h3>
-                  <p className="text-stone-400 dark:text-stone-500 text-sm">Controla tus límites mensuales</p>
-                </div>
-                <div className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-stone-400">
-                  <BarChart3 size={20} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {categories.map(cat => {
-                  const spent = searchFilteredExpenses
-                    .filter(e => e.category_id === cat.id && parseISO(e.date).getMonth() === selectedMonth && parseISO(e.date).getFullYear() === selectedYear)
-                    .reduce((sum, e) => sum + e.amount, 0);
-                  const percentage = cat.budget > 0 ? Math.min((spent / cat.budget) * 100, 100) : 0;
-                  const isOver = cat.budget > 0 && spent > cat.budget;
-
-                  return (
-                    <div key={cat.id} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                          <span className="text-sm font-bold text-stone-700 dark:text-stone-300">{cat.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-stone-900 dark:text-stone-100">{spent.toLocaleString()}€</span>
-                          <span className="text-stone-400 text-[10px]">/</span>
-                          <input 
-                            type="number"
-                            defaultValue={cat.budget}
-                            onBlur={(e) => handleUpdateBudget(cat.id, parseFloat(e.target.value) || 0)}
-                            className="w-16 bg-transparent border-none p-0 text-[10px] font-black text-stone-400 focus:text-emerald-600 focus:ring-0 transition-colors"
-                          />
-                        </div>
-                      </div>
-                      <div className="h-2 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${percentage}%` }}
-                          className={cn(
-                            "h-full rounded-full transition-all duration-1000",
-                            isOver ? "bg-red-500" : "bg-emerald-500"
-                          )}
-                        />
-                      </div>
-                      {isOver && (
-                        <p className="text-[10px] text-red-500 font-bold flex items-center gap-1">
-                          <TrendingUp size={10} />
-                          ¡Presupuesto excedido!
-                        </p>
+                      Categorías
+                    </button>
+                    <button 
+                      onClick={() => setActiveChartTab('trend')}
+                      className={cn(
+                        "px-5 py-2 text-xs font-bold rounded-xl transition-all",
+                        activeChartTab === 'trend' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "text-stone-600 dark:text-stone-400 hover:text-stone-900"
                       )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-stone-200/60 dark:border-stone-800 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Gastos Recurrentes</h3>
-                  <p className="text-stone-400 dark:text-stone-500 text-sm">Suscripciones y pagos fijos</p>
-                </div>
-                <button 
-                  onClick={() => setShowRecurringForm(true)}
-                  className="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 transition-all"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {recurringExpenses.length > 0 ? recurringExpenses.map(rec => {
-                  const Icon = ICON_MAP[rec.category_icon] || MoreHorizontal;
-                  return (
-                    <div key={rec.id} className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 rounded-xl text-white" style={{ backgroundColor: rec.category_color }}>
-                          <Icon size={18} />
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-stone-900 dark:text-stone-100">{rec.description}</div>
-                          <div className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-widest">
-                            {rec.frequency === 'monthly' ? 'Mensual' : 'Semanal'} • Próximo: {format(parseISO(rec.next_date), 'dd MMM', { locale: es })}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="font-black text-stone-900 dark:text-stone-100">{rec.amount.toLocaleString()}€</div>
-                        <button 
-                          onClick={() => handleDeleteRecurring(rec.id)}
-                          className="text-stone-300 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                }) : (
-                  <div className="text-center py-8 text-stone-400 italic text-sm">No tienes gastos recurrentes configurados</div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar Area */}
-          <div className="lg:col-span-4 space-y-6">
-            <div className="bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-6 rounded-[2rem] border border-stone-200/50 dark:border-stone-800/50 shadow-lg shadow-stone-200/20 dark:shadow-none flex flex-col h-full max-h-[800px]">
-              <div className="flex flex-col gap-4 mb-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold tracking-tight text-stone-900 dark:text-stone-100">Gastos</h3>
-                  <div className="p-1.5 bg-stone-50 dark:bg-stone-800 rounded-lg text-stone-400 dark:text-stone-500">
-                    <TrendingDown size={16} />
+                    >
+                      Tendencia
+                    </button>
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
-                  <select 
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                    className="flex-1 bg-stone-50 dark:bg-stone-800 border-none rounded-xl px-3 py-2 text-xs font-bold text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all appearance-none"
-                  >
-                    {Array.from({ length: 12 }).map((_, i) => (
-                      <option key={i} value={i}>
-                        {format(new Date(2024, i), 'MMMM', { locale: es })}
-                      </option>
-                    ))}
-                  </select>
-                  <select 
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="bg-stone-50 dark:bg-stone-800 border-none rounded-xl px-3 py-2 text-xs font-bold text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all appearance-none"
-                  >
-                    {Array.from({ length: 5 }).map((_, i) => {
-                      const year = new Date().getFullYear() - 2 + i;
-                      return <option key={year} value={year}>{year}</option>;
-                    })}
-                  </select>
+                <div className="flex-1 min-h-0">
+                  {activeChartTab === 'categories' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full">
+                      <div className="h-full">
+                        {categoryData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={categoryData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={70}
+                                outerRadius={90}
+                                paddingAngle={8}
+                                dataKey="value"
+                                stroke="none"
+                              >
+                                {categoryData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                  borderRadius: '16px', 
+                                  border: 'none', 
+                                  boxShadow: '0 10px 25px rgba(0,0,0,0.05)', 
+                                  padding: '12px',
+                                  backgroundColor: darkMode ? '#1c1917' : '#ffffff',
+                                  color: darkMode ? '#f5f5f4' : '#1c1917'
+                                }}
+                                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                formatter={(value: number) => [`${value.toLocaleString()}€`, 'Total']}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="h-full flex flex-col items-center justify-center text-stone-300 dark:text-stone-700 gap-2">
+                            <PieChartIcon size={48} strokeWidth={1} />
+                            <span className="text-sm italic">Sin datos suficientes</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-3 max-h-full overflow-y-auto pr-2 custom-scrollbar">
+                        {categoryData.length > 0 ? categoryData.map((cat, i) => (
+                          <div key={i} className="flex items-center justify-between group">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                              <span className="text-sm font-medium text-stone-600 dark:text-stone-400 group-hover:text-stone-900 dark:group-hover:text-stone-100 transition-colors">{cat.name}</span>
+                            </div>
+                            <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{cat.value.toLocaleString()}€</div>
+                          </div>
+                        )) : (
+                          <div className="text-stone-400 dark:text-stone-500 text-xs text-center">Registra gastos para ver el desglose</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={trendData}>
+                          <XAxis 
+                            dataKey="name" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 10, fontWeight: 'bold', fill: darkMode ? '#78716c' : '#a8a29e' }}
+                            dy={10}
+                          />
+                          <YAxis hide />
+                          <Tooltip 
+                            cursor={{ fill: darkMode ? '#292524' : '#f5f5f4', radius: 12 }}
+                            contentStyle={{ 
+                              borderRadius: '16px', 
+                              border: 'none', 
+                              boxShadow: '0 10px 25px rgba(0,0,0,0.05)', 
+                              padding: '12px',
+                              backgroundColor: darkMode ? '#1c1917' : '#ffffff',
+                              color: darkMode ? '#f5f5f4' : '#1c1917'
+                            }}
+                            itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#059669' }}
+                            labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: darkMode ? '#78716c' : '#a8a29e', marginBottom: '4px' }}
+                            labelFormatter={(label, payload) => payload[0]?.payload?.fullDate || label}
+                            formatter={(value: number) => [`${value.toLocaleString()}€`, 'Gasto']}
+                          />
+                          <Bar 
+                            dataKey="total" 
+                            fill="#10b981" 
+                            radius={[6, 6, 6, 6]} 
+                            barSize={24}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
-                {filteredExpenses.length > 0 ? filteredExpenses.map(expense => {
-                  const Icon = ICON_MAP[expense.category_icon] || MoreHorizontal;
-                  return (
-                    <motion.div 
-                      layout
-                      key={expense.id}
-                      className="flex items-center justify-between p-4 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 rounded-2xl transition-all group border border-transparent hover:border-emerald-100 dark:hover:border-emerald-900"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div 
-                          className="p-3 rounded-2xl text-white shadow-sm"
-                          style={{ backgroundColor: expense.category_color }}
-                        >
-                          <Icon size={18} />
+
+              {/* Savings Goals */}
+              <div key="goals" className="space-y-4 h-full overflow-y-auto custom-scrollbar relative pr-2">
+                <div className="drag-handle cursor-move absolute top-0 right-0 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex items-center justify-between px-2 pr-12">
+                  <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Metas de Ahorro</h3>
+                  <button 
+                    onClick={() => setShowGoalForm(true)}
+                    className="text-emerald-600 hover:text-emerald-700 text-sm font-bold flex items-center gap-1.5"
+                  >
+                    <Plus size={18} /> Nueva Meta
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {goals.length > 0 ? goals.map(goal => {
+                    const progress = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+                    return (
+                      <motion.div 
+                        layout
+                        key={goal.id} 
+                        className="bg-white/60 dark:bg-stone-900/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/40 dark:border-stone-800/40 shadow-lg shadow-stone-200/10 dark:shadow-none space-y-4 hover:border-emerald-500/30 transition-all duration-500"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-stone-800 dark:text-stone-200">{goal.name}</h4>
+                            <p className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-widest mt-0.5">
+                              {goal.deadline ? format(parseISO(goal.deadline), 'dd MMM yyyy', { locale: es }) : 'Sin fecha'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-emerald-600 dark:text-emerald-500">{Math.round(progress)}%</div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-sm text-stone-800 dark:text-stone-200 truncate">{expense.description || expense.category_name}</div>
-                          <div className="text-[11px] text-stone-400 dark:text-stone-500 font-medium">{format(parseISO(expense.date), 'dd MMM', { locale: es })}</div>
+                        
+                        <div className="space-y-2">
+                          <div className="h-2.5 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress}%` }}
+                              className="h-full bg-emerald-500 rounded-full"
+                            />
+                          </div>
+                          <div className="flex justify-between text-[11px] font-bold">
+                            <span className="text-stone-400 dark:text-stone-500">{goal.current_amount.toLocaleString()}€</span>
+                            <span className="text-stone-800 dark:text-stone-200">Objetivo: {goal.target_amount.toLocaleString()}€</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="font-black text-sm text-emerald-600 dark:text-emerald-400">-{expense.amount.toLocaleString()}€</div>
-                        <button 
-                          onClick={() => handleDeleteExpense(expense.id)}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-all"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </motion.div>
-                  );
-                }) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-stone-300 dark:text-stone-700 gap-2">
-                    <Wallet size={32} strokeWidth={1} />
-                    <p className="text-xs italic">Sin gastos en este periodo</p>
+
+                        <div className="flex gap-2 pt-2">
+                          <button 
+                            onClick={() => handleUpdateGoalProgress(goal.id, goal.current_amount, 50)}
+                            className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-stone-50 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                          >
+                            +50€
+                          </button>
+                          <button 
+                            onClick={() => handleUpdateGoalProgress(goal.id, goal.current_amount, 100)}
+                            className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider bg-stone-50 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                          >
+                            +100€
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  }) : (
+                    <div className="col-span-2 bg-stone-100/50 dark:bg-stone-900/50 border-2 border-dashed border-stone-200 dark:border-stone-800 rounded-[2rem] py-12 flex flex-col items-center justify-center text-stone-400 dark:text-stone-600 gap-3">
+                      <Target size={40} strokeWidth={1} />
+                      <p className="text-sm font-medium italic">Establece tu primera meta de ahorro</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Budgets */}
+              <div key="budgets" className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-stone-200/60 dark:border-stone-800 shadow-sm h-full overflow-y-auto custom-scrollbar relative">
+                <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex items-center justify-between mb-8 pr-12">
+                  <div>
+                    <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Presupuestos por Categoría</h3>
+                    <p className="text-stone-400 dark:text-stone-500 text-sm">Controla tus límites mensuales</p>
                   </div>
+                  <div className="p-2 bg-stone-50 dark:bg-stone-800 rounded-xl text-stone-400">
+                    <BarChart3 size={20} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  {categories.map(cat => {
+                    const spent = searchFilteredExpenses
+                      .filter(e => e.category_id === cat.id && parseISO(e.date).getMonth() === selectedMonth && parseISO(e.date).getFullYear() === selectedYear)
+                      .reduce((sum, e) => sum + e.amount, 0);
+                    const percentage = cat.budget > 0 ? Math.min((spent / cat.budget) * 100, 100) : 0;
+                    const isOver = cat.budget > 0 && spent > cat.budget;
+
+                    return (
+                      <div key={cat.id} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                            <span className="text-sm font-bold text-stone-700 dark:text-stone-300">{cat.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-stone-900 dark:text-stone-100">{spent.toLocaleString()}€</span>
+                            <span className="text-stone-400 text-[10px]">/</span>
+                            <input 
+                              type="number"
+                              defaultValue={cat.budget}
+                              onBlur={(e) => handleUpdateBudget(cat.id, parseFloat(e.target.value) || 0)}
+                              className="w-16 bg-transparent border-none p-0 text-[10px] font-black text-stone-400 focus:text-emerald-600 focus:ring-0 transition-colors"
+                            />
+                          </div>
+                        </div>
+                        <div className="h-2 bg-stone-100 dark:bg-stone-800 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            className={cn(
+                              "h-full rounded-full transition-all duration-1000",
+                              isOver ? "bg-red-500" : "bg-emerald-500"
+                            )}
+                          />
+                        </div>
+                        {isOver && (
+                          <p className="text-[10px] text-red-500 font-bold flex items-center gap-1">
+                            <TrendingUp size={10} />
+                            ¡Presupuesto excedido!
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Recurring Expenses */}
+              <div key="recurring" className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-stone-200/60 dark:border-stone-800 shadow-sm h-full overflow-y-auto custom-scrollbar relative">
+                <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex items-center justify-between mb-8 pr-12">
+                  <div>
+                    <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Gastos Recurrentes</h3>
+                    <p className="text-stone-400 dark:text-stone-500 text-sm">Suscripciones y pagos fijos</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowRecurringForm(true)}
+                    className="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 transition-all"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {recurringExpenses.length > 0 ? recurringExpenses.map(rec => {
+                    const Icon = ICON_MAP[rec.category_icon] || MoreHorizontal;
+                    return (
+                      <div key={rec.id} className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2.5 rounded-xl text-white" style={{ backgroundColor: rec.category_color }}>
+                            <Icon size={18} />
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-stone-900 dark:text-stone-100">{rec.description}</div>
+                            <div className="text-[10px] text-stone-400 dark:text-stone-500 font-bold uppercase tracking-widest">
+                              {rec.frequency === 'monthly' ? 'Mensual' : 'Semanal'} • Próximo: {format(parseISO(rec.next_date), 'dd MMM', { locale: es })}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="font-black text-stone-900 dark:text-stone-100">{rec.amount.toLocaleString()}€</div>
+                          <button 
+                            onClick={() => handleDeleteRecurring(rec.id)}
+                            className="text-stone-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className="text-center py-8 text-stone-400 italic text-sm">No tienes gastos recurrentes configurados</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sidebar Area */}
+              <div key="sidebar" className="bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-6 rounded-[2rem] border border-stone-200/50 dark:border-stone-800/50 shadow-lg shadow-stone-200/20 dark:shadow-none flex flex-col h-full relative">
+                <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
+                  <MoreHorizontal size={20} />
+                </div>
+                <div className="flex flex-col gap-4 mb-6 pr-12">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold tracking-tight text-stone-900 dark:text-stone-100">Gastos</h3>
+                    <div className="p-1.5 bg-stone-50 dark:bg-stone-800 rounded-lg text-stone-400 dark:text-stone-500">
+                      <TrendingDown size={16} />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="flex-1 bg-stone-50 dark:bg-stone-800 border-none rounded-xl px-3 py-2 text-xs font-bold text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all appearance-none"
+                    >
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <option key={i} value={i}>
+                          {format(new Date(2024, i), 'MMMM', { locale: es })}
+                        </option>
+                      ))}
+                    </select>
+                    <select 
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="bg-stone-50 dark:bg-stone-800 border-none rounded-xl px-3 py-2 text-xs font-bold text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all appearance-none"
+                    >
+                      {Array.from({ length: 5 }).map((_, i) => {
+                        const year = new Date().getFullYear() - 2 + i;
+                        return <option key={year} value={year}>{year}</option>;
+                      })}
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+                  {filteredExpenses.length > 0 ? filteredExpenses.map(expense => {
+                    const Icon = ICON_MAP[expense.category_icon] || MoreHorizontal;
+                    return (
+                      <motion.div 
+                        layout
+                        key={expense.id}
+                        className="flex items-center justify-between p-4 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 rounded-2xl transition-all group border border-transparent hover:border-emerald-100 dark:hover:border-emerald-900"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="p-3 rounded-2xl text-white shadow-sm"
+                            style={{ backgroundColor: expense.category_color }}
+                          >
+                            <Icon size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-sm text-stone-800 dark:text-stone-200 truncate">{expense.description || expense.category_name}</div>
+                            <div className="text-[11px] text-stone-400 dark:text-stone-500 font-medium">{format(parseISO(expense.date), 'dd MMM', { locale: es })}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="font-black text-sm text-emerald-600 dark:text-emerald-400">-{expense.amount.toLocaleString()}€</div>
+                          <button 
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            className="opacity-0 group-hover:opacity-100 p-2 text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-all"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  }) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-stone-300 dark:text-stone-700 gap-2">
+                      <Wallet size={32} strokeWidth={1} />
+                      <p className="text-xs italic">Sin gastos en este periodo</p>
+                    </div>
+                  )}
+                </div>
+                
+                {filteredExpenses.length > 0 && (
+                  <button className="w-full mt-4 py-3 text-stone-400 dark:text-stone-500 text-[10px] font-black uppercase tracking-widest hover:text-stone-900 dark:hover:text-stone-100 transition-colors border-t border-stone-50 dark:border-stone-800 pt-4">
+                    Ver Historial Completo
+                  </button>
                 )}
               </div>
-              
-              {filteredExpenses.length > 0 && (
-                <button className="w-full mt-4 py-3 text-stone-400 dark:text-stone-500 text-[10px] font-black uppercase tracking-widest hover:text-stone-900 dark:hover:text-stone-100 transition-colors border-t border-stone-50 dark:border-stone-800 pt-4">
-                  Ver Historial Completo
-                </button>
-              )}
-            </div>
-          </div>
+            </Responsive>
+          )}
         </div>
       </main>
 
