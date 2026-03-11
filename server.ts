@@ -790,9 +790,10 @@ async function startServer() {
     }
 
     // Check if the requester is an admin
+    const isAdmin = req.session.username === 'gugliama' || req.session.username === 'marcogugliandolo94@gmail.com';
     const adminMembership = db.prepare("SELECT group_id, role FROM group_members WHERE user_id = ?").get(adminId) as any;
     
-    if (!adminMembership || adminMembership.role !== 'admin') {
+    if (!isAdmin && (!adminMembership || adminMembership.role !== 'admin')) {
       return res.status(403).json({ error: "Solo el administrador puede cambiar el modo de cuenta" });
     }
 
