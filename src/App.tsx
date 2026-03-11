@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   Trash2, 
   TrendingDown, 
   TrendingUp, 
-  Wallet, 
+  Mountain, 
   Target, 
   PieChart as PieChartIcon, 
   Calendar,
@@ -35,7 +35,8 @@ import {
   RefreshCw,
   ArrowRight,
   LayoutDashboard,
-  Edit2
+  Edit2,
+  Settings
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -75,7 +76,7 @@ const ICON_MAP: Record<string, any> = {
   Camera,
   RefreshCw,
   ArrowRight,
-  Wallet,
+  Mountain,
   Target,
   PieChartIcon,
   Calendar
@@ -135,14 +136,26 @@ const DEFAULT_LAYOUTS = {
 };
 
 export default function App() {
-  const [user, setUser] = useState<{ id: number, username: string, profile_image?: string, account_mode?: string } | null>(() => {
+  const [user, setUser] = useState<{ id: number, username: string, profile_image?: string, account_mode?: string, theme_color?: string } | null>(() => {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
   const [authLoading, setAuthLoading] = useState(true);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileData, setProfileData] = useState({ username: '', profile_image: '' });
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  const [profileData, setProfileData] = useState({ username: '', profile_image: '', theme_color: 'default' });
   const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
@@ -912,7 +925,11 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className={cn(darkMode && "dark")}>
+      <div className={cn(
+        darkMode && "dark",
+        isRegistering && loginData.account_mode === 'familiar' && "theme-familiar",
+        isRegistering && loginData.account_mode === 'amigos' && "theme-amigos"
+      )}>
         <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex transition-colors duration-300">
           {/* Left Side - Form */}
           <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-16 lg:px-24 xl:px-32 relative z-10">
@@ -924,9 +941,9 @@ export default function App() {
             >
               <div className="flex items-center gap-3 mb-12">
                 <div className="p-3 bg-emerald-600 rounded-2xl text-white shadow-lg shadow-emerald-200 dark:shadow-emerald-900/20">
-                  <Wallet size={24} />
+                  <Mountain size={24} />
                 </div>
-                <span className="text-xl font-black tracking-tight text-stone-900 dark:text-stone-100">Cartera</span>
+                <span className="text-xl font-black tracking-tight text-stone-900 dark:text-stone-100">Alza</span>
               </div>
 
               <div className="mb-10">
@@ -974,25 +991,26 @@ export default function App() {
                 {isRegistering && (
                   <div className="space-y-4">
                     <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Modo de Uso</label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {[
-                        { id: 'individual', label: 'Individual', icon: UserIcon },
-                        { id: 'familiar', label: 'Familiar', icon: Users },
-                        { id: 'amigos', label: 'Amigos', icon: Heart }
+                        { id: 'individual', label: 'Individual', icon: UserIcon, desc: 'Para tus finanzas personales' },
+                        { id: 'familiar', label: 'Familiar', icon: Users, desc: 'Comparte gastos en casa' },
+                        { id: 'amigos', label: 'Amigos', icon: Heart, desc: 'Viajes y pisos compartidos' }
                       ].map((mode) => (
                         <button
                           key={mode.id}
                           type="button"
                           onClick={() => setLoginData({...loginData, account_mode: mode.id})}
                           className={cn(
-                            "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-2",
+                            "flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all gap-2 text-center",
                             loginData.account_mode === mode.id 
                               ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400" 
                               : "border-stone-100 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-400 hover:border-stone-200 dark:hover:border-stone-700"
                           )}
                         >
-                          <mode.icon size={20} />
-                          <span className="text-[10px] font-bold uppercase tracking-wider">{mode.label}</span>
+                          <mode.icon size={24} className="mb-1" />
+                          <span className="text-sm font-bold tracking-tight">{mode.label}</span>
+                          <span className="text-[10px] leading-tight opacity-80 px-2">{mode.desc}</span>
                         </button>
                       ))}
                     </div>
@@ -1095,68 +1113,31 @@ export default function App() {
   }
 
   return (
-    <div className={cn(darkMode && "dark")}>
+    <div className={cn(
+      darkMode && "dark",
+      user?.theme_color && user.theme_color !== 'default' ? `theme-${user.theme_color}` : (
+        user?.account_mode === 'familiar' ? "theme-familiar" :
+        user?.account_mode === 'amigos' ? "theme-amigos" : ""
+      )
+    )}>
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans pb-20 transition-colors duration-300 overflow-x-hidden">
         {/* Header */}
         <header className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 sticky top-0 z-10 px-4 py-4 sm:px-6">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-600 rounded-xl text-white">
-              <Wallet size={24} />
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl text-white shadow-sm bg-emerald-600">
+              {user?.account_mode === 'familiar' ? <Users size={24} /> :
+               user?.account_mode === 'amigos' ? <Heart size={24} /> :
+               <Mountain size={24} />}
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Cartera</h1>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight leading-none">Alza</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest mt-1 text-emerald-600 dark:text-emerald-400">
+                {user?.account_mode || 'Individual'}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={resetLayout}
-              className="p-2 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
-              title="Restaurar diseño por defecto"
-              aria-label="Restaurar diseño"
-            >
-              <LayoutDashboard size={20} />
-            </button>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
-              aria-label="Toggle dark mode"
-            >
-              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            <button
-              onClick={() => {
-                setProfileData({ username: user?.username || '', profile_image: user?.profile_image || '' });
-                setShowProfileModal(true);
-              }}
-              className="flex items-center gap-2 p-1 pr-3 bg-stone-100 dark:bg-stone-800 rounded-full hover:bg-stone-200 dark:hover:bg-stone-700 transition-all"
-            >
-              <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 dark:bg-stone-700 flex items-center justify-center">
-                {user?.profile_image ? (
-                  <img src={user.profile_image} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <UserIcon size={16} className="text-stone-500" />
-                )}
-              </div>
-              <span className="text-sm font-bold hidden sm:inline">{user?.username}</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 text-stone-500 dark:text-stone-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-colors"
-              aria-label="Cerrar sesión"
-            >
-              <LogOut size={20} />
-            </button>
-            {(user?.username === 'gugliama' || user?.username === 'marcogugliandolo94@gmail.com') && (
-              <button 
-                onClick={() => {
-                  fetchUsers();
-                  setShowAdminPanel(true);
-                }}
-                className="bg-stone-800 hover:bg-stone-900 text-white px-4 py-2 rounded-full flex items-center gap-2 transition-all shadow-sm active:scale-95"
-              >
-                <UserIcon size={20} />
-                <span className="hidden sm:inline">Admin</span>
-              </button>
-            )}
             <button 
               onClick={() => {
                 setEditingExpense(null);
@@ -1168,6 +1149,102 @@ export default function App() {
               <Plus size={20} />
               <span className="hidden sm:inline">Nuevo Gasto</span>
             </button>
+
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 p-1 pr-3 bg-stone-100 dark:bg-stone-800 rounded-full hover:bg-stone-200 dark:hover:bg-stone-700 transition-all border border-transparent hover:border-stone-300 dark:hover:border-stone-600"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-200 dark:bg-stone-700 flex items-center justify-center">
+                  {user?.profile_image ? (
+                    <img src={user.profile_image} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <UserIcon size={16} className="text-stone-500" />
+                  )}
+                </div>
+                <span className="text-sm font-bold hidden sm:inline">{user?.username}</span>
+              </button>
+
+              <AnimatePresence>
+                {showUserMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 bg-white dark:bg-stone-900 rounded-2xl shadow-xl border border-stone-200 dark:border-stone-800 overflow-hidden z-50"
+                  >
+                    <div className="p-3 border-b border-stone-100 dark:border-stone-800">
+                      <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{user?.username}</p>
+                      <p className="text-xs text-stone-500 dark:text-stone-400 truncate capitalize">Cuenta {user?.account_mode || 'Individual'}</p>
+                    </div>
+                    
+                    <div className="p-2 space-y-1">
+                      <button
+                        onClick={() => {
+                          setProfileData({ username: user?.username || '', profile_image: user?.profile_image || '', theme_color: user?.theme_color || 'default' });
+                          setShowProfileModal(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
+                      >
+                        <Settings size={16} />
+                        <span>Configuración</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setDarkMode(!darkMode);
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
+                      >
+                        {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+                        <span>{darkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          resetLayout();
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl transition-colors"
+                      >
+                        <LayoutDashboard size={16} />
+                        <span>Restaurar Diseño</span>
+                      </button>
+
+                      {(user?.username === 'gugliama' || user?.username === 'marcogugliandolo94@gmail.com') && (
+                        <button 
+                          onClick={() => {
+                            fetchUsers();
+                            setShowAdminPanel(true);
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-colors font-medium"
+                        >
+                          <Users size={16} />
+                          <span>Panel Admin</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="p-2 border-t border-stone-100 dark:border-stone-800">
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-colors"
+                      >
+                        <LogOut size={16} />
+                        <span>Cerrar Sesión</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </header>
@@ -1716,7 +1793,7 @@ export default function App() {
                     );
                   }) : (
                     <div className="flex flex-col items-center justify-center py-20 text-stone-300 dark:text-stone-700 gap-2">
-                      <Wallet size={32} strokeWidth={1} />
+                      <Mountain size={32} strokeWidth={1} />
                       <p className="text-xs italic">Sin gastos en este periodo</p>
                     </div>
                   )}
@@ -1789,11 +1866,60 @@ export default function App() {
                     />
                   </div>
 
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Color de Acento</label>
+                    <div className="grid grid-cols-5 gap-3">
+                      {[
+                        { id: 'default', color: 'bg-emerald-500' },
+                        { id: 'lila', color: 'bg-fuchsia-500' },
+                        { id: 'naranja', color: 'bg-orange-500' },
+                        { id: 'ambar', color: 'bg-amber-500' },
+                        { id: 'indigo', color: 'bg-indigo-500' }
+                      ].map((theme) => (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setProfileData({...profileData, theme_color: theme.id})}
+                          className={cn(
+                            "w-12 h-12 rounded-full flex items-center justify-center transition-all mx-auto",
+                            theme.color,
+                            profileData.theme_color === theme.id 
+                              ? "ring-4 ring-stone-900 dark:ring-stone-100 ring-offset-2 dark:ring-offset-stone-900 scale-110" 
+                              : "opacity-70 hover:opacity-100 hover:scale-105"
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
                   {user?.account_mode && (
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Modo de Cuenta</label>
-                      <div className="w-full bg-stone-50 dark:bg-stone-800 rounded-2xl py-4 px-6 text-stone-500 dark:text-stone-400 font-bold capitalize">
-                        {user.account_mode}
+                      <div className={cn(
+                        "w-full rounded-2xl py-4 px-6 font-bold capitalize flex items-center justify-between",
+                        user.account_mode === 'familiar' ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400" :
+                        user.account_mode === 'amigos' ? "bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400" :
+                        "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
+                      )}>
+                        <div className="flex items-center gap-3">
+                          {user.account_mode === 'familiar' ? <Users size={20} /> :
+                           user.account_mode === 'amigos' ? <Heart size={20} /> :
+                           <UserIcon size={20} />}
+                          {user.account_mode}
+                        </div>
+                        {user.account_mode !== 'individual' && (
+                          <button 
+                            type="button"
+                            onClick={() => alert('La función de invitar miembros estará disponible próximamente.')}
+                            className={cn(
+                              "text-xs px-3 py-1.5 rounded-full transition-colors",
+                              user.account_mode === 'familiar' ? "bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/50" :
+                              "bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 dark:hover:bg-rose-800/50"
+                            )}
+                          >
+                            Invitar
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}

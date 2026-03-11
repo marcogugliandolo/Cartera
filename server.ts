@@ -97,6 +97,9 @@ if (!userInfo.find(col => col.name === 'profile_image')) {
 if (!userInfo.find(col => col.name === 'account_mode')) {
   db.exec(`ALTER TABLE users ADD COLUMN account_mode TEXT DEFAULT 'individual'`);
 }
+if (!userInfo.find(col => col.name === 'theme_color')) {
+  db.exec(`ALTER TABLE users ADD COLUMN theme_color TEXT DEFAULT 'default'`);
+}
 
 // Seed categories if empty
 const categoryCount = db.prepare("SELECT count(*) as count FROM categories").get() as { count: number };
@@ -135,7 +138,8 @@ async function startServer() {
   const PORT = 3000;
 
   app.set("trust proxy", 1); // Trust the first proxy (nginx)
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
   app.use(session({
     secret: "ahorra-secret-key",
     resave: true,
@@ -180,7 +184,7 @@ async function startServer() {
       console.log(`Login successful for user: ${username}`);
       req.session.userId = user.id;
       req.session.username = user.username;
-      res.json({ id: user.id, username: user.username, profile_image: user.profile_image });
+      res.json({ id: user.id, username: user.username, profile_image: user.profile_image, account_mode: user.account_mode, theme_color: user.theme_color });
     } else {
       console.log(`Login failed for user: ${username}`);
       res.status(401).json({ error: "Credenciales inválidas" });
@@ -188,21 +192,22 @@ async function startServer() {
   });
 
   app.post("/api/auth/register", (req, res) => {
-    const { username, password, account_mode } = req.body;
+    const { username, password, account_mode, theme_color } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: "Usuario y contraseña requeridos" });
     }
     const hashedPassword = bcrypt.hashSync(password, 10);
     const mode = account_mode || 'individual';
+    const theme = theme_color || 'default';
     try {
-      const result = db.prepare("INSERT INTO users (username, password, account_mode) VALUES (?, ?, ?)").run(username, hashedPassword, mode);
+      const result = db.prepare("INSERT INTO users (username, password, account_mode, theme_color) VALUES (?, ?, ?, ?)").run(username, hashedPassword, mode, theme);
       const userId = result.lastInsertRowid as number;
       
       // Auto-login after registration
       req.session.userId = userId;
       req.session.username = username;
       
-      res.json({ id: userId, username, profile_image: null, account_mode: mode });
+      res.json({ id: userId, username, profile_image: null, account_mode: mode, theme_color: theme });
     } catch (err: any) {
       if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         res.status(400).json({ error: "El nombre de usuario ya existe" });
@@ -220,7 +225,7 @@ async function startServer() {
 
   app.get("/api/auth/me", (req, res) => {
     if (req.session.userId) {
-      const user = db.prepare("SELECT id, username, profile_image, account_mode FROM users WHERE id = ?").get(req.session.userId) as any;
+      const user = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(req.session.userId) as any;
       if (user) {
         res.json(user);
       } else {
@@ -232,7 +237,7 @@ async function startServer() {
   });
 
   app.patch("/api/auth/profile", isAuthenticated, (req, res) => {
-    const { username, profile_image } = req.body;
+    const { username, profile_image, theme_color } = req.body;
     const userId = req.session.userId;
 
     try {
@@ -243,8 +248,11 @@ async function startServer() {
       if (profile_image !== undefined) {
         db.prepare("UPDATE users SET profile_image = ? WHERE id = ?").run(profile_image, userId);
       }
+      if (theme_color !== undefined) {
+        db.prepare("UPDATE users SET theme_color = ? WHERE id = ?").run(theme_color, userId);
+      }
       
-      const updatedUser = db.prepare("SELECT id, username, profile_image FROM users WHERE id = ?").get(userId) as any;
+      const updatedUser = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(userId) as any;
       res.json(updatedUser);
     } catch (err: any) {
       if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -604,6 +612,11 @@ async function startServer() {
     }
   });
 
+  // API 404 handler
+  app.use("/api/*", (req, res) => {
+    res.status(404).json({ error: "API endpoint not found" });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -617,6 +630,11 @@ async function startServer() {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
   }
+
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
