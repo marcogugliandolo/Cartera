@@ -197,6 +197,28 @@ async function startServer() {
     res.status(401).json({ error: "No autorizado" });
   };
 
+  // Helper to get full user data with group info
+  const getFullUserData = (userId: number) => {
+    const user = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(userId) as any;
+    if (user) {
+      const group = db.prepare(`
+        SELECT g.* FROM groups g
+        JOIN group_members gm ON g.id = gm.group_id
+        WHERE gm.user_id = ?
+      `).get(user.id) as any;
+      
+      if (group) {
+        user.group = group;
+        user.group.members = db.prepare(`
+          SELECT u.id, u.username, u.profile_image, gm.role FROM users u
+          JOIN group_members gm ON u.id = gm.user_id
+          WHERE gm.group_id = ?
+        `).all(group.id);
+      }
+    }
+    return user;
+  };
+
   // Auth Routes
   app.post("/api/auth/login", (req, res) => {
     const { username, password } = req.body;
@@ -207,7 +229,7 @@ async function startServer() {
       console.log(`Login successful for user: ${username}`);
       req.session.userId = user.id;
       req.session.username = user.username;
-      res.json({ id: user.id, username: user.username, profile_image: user.profile_image, account_mode: user.account_mode, theme_color: user.theme_color });
+      res.json(getFullUserData(user.id));
     } else {
       console.log(`Login failed for user: ${username}`);
       res.status(401).json({ error: "Credenciales inválidas" });
@@ -223,9 +245,10 @@ async function startServer() {
     const mode = account_mode || 'individual';
     const theme = theme_color || 'default';
     try {
+      let userId: number;
       db.transaction(() => {
         const result = db.prepare("INSERT INTO users (username, password, account_mode, theme_color) VALUES (?, ?, ?, ?)").run(username, hashedPassword, mode, theme);
-        const userId = result.lastInsertRowid as number;
+        userId = result.lastInsertRowid as number;
         
         // Auto-login after registration
         req.session.userId = userId;
@@ -241,8 +264,7 @@ async function startServer() {
         }
       })();
       
-      const user = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(req.session.userId) as any;
-      res.json(user);
+      res.json(getFullUserData(req.session.userId));
     } catch (err: any) {
       if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         res.status(400).json({ error: "El nombre de usuario ya existe" });
@@ -260,25 +282,8 @@ async function startServer() {
 
   app.get("/api/auth/me", (req, res) => {
     if (req.session.userId) {
-      const user = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(req.session.userId) as any;
+      const user = getFullUserData(req.session.userId);
       if (user) {
-        // Get group info if exists
-        const group = db.prepare(`
-          SELECT g.* FROM groups g
-          JOIN group_members gm ON g.id = gm.group_id
-          WHERE gm.user_id = ?
-        `).get(user.id) as any;
-        
-        if (group) {
-          user.group = group;
-          // Get group members
-          user.group.members = db.prepare(`
-            SELECT u.id, u.username, u.profile_image, gm.role FROM users u
-            JOIN group_members gm ON u.id = gm.user_id
-            WHERE gm.group_id = ?
-          `).all(group.id);
-        }
-        
         res.json(user);
       } else {
         res.status(404).json({ error: "Usuario no encontrado" });
@@ -311,6 +316,22 @@ async function startServer() {
     }
   });
 
+  app.post("/api/groups/regenerate-code", isAuthenticated, (req, res) => {
+    const userId = req.session.userId;
+    
+    // Check if user is admin of their group
+    const membership = db.prepare("SELECT group_id, role FROM group_members WHERE user_id = ?").get(userId) as any;
+    
+    if (!membership || membership.role !== 'admin') {
+      return res.status(403).json({ error: "Solo el administrador puede regenerar el código" });
+    }
+
+    const newInviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    db.prepare("UPDATE groups SET invite_code = ? WHERE id = ?").run(newInviteCode, membership.group_id);
+    
+    res.json({ invite_code: newInviteCode });
+  });
+
   app.patch("/api/auth/profile", isAuthenticated, (req, res) => {
     const { username, profile_image, theme_color } = req.body;
     const userId = req.session.userId;
@@ -327,8 +348,7 @@ async function startServer() {
         db.prepare("UPDATE users SET theme_color = ? WHERE id = ?").run(theme_color, userId);
       }
       
-      const updatedUser = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(userId) as any;
-      res.json(updatedUser);
+      res.json(getFullUserData(userId));
     } catch (err: any) {
       if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
         res.status(400).json({ error: "El nombre de usuario ya existe" });

@@ -479,6 +479,35 @@ export default function App() {
     }
   };
 
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const handleRegenerateCode = async () => {
+    setIsRegenerating(true);
+    try {
+      const res = await fetch('/api/groups/regenerate-code', {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh user data to get new code
+        const meRes = await fetch('/api/auth/me', { headers: getAuthHeaders() });
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          setUser(meData);
+          localStorage.setItem('user', JSON.stringify(meData));
+        }
+      } else {
+        const data = await res.json();
+        console.error(data.error || 'Error al regenerar el código');
+      }
+    } catch (error) {
+      console.error('Error de conexión');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -494,7 +523,7 @@ export default function App() {
         setShowProfileModal(false);
       } else {
         const error = await res.json();
-        alert(error.error || 'Error al actualizar el perfil');
+        console.error(error.error || 'Error al actualizar el perfil');
       }
     } catch (err) {
       console.error(err);
@@ -1297,7 +1326,10 @@ export default function App() {
                       
                       {user?.account_mode !== 'individual' && (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
+                            if (!user?.group) {
+                              await checkAuth();
+                            }
                             setShowInviteModal(true);
                             setShowUserMenu(false);
                           }}
@@ -2010,18 +2042,29 @@ export default function App() {
                 <div className="w-full bg-stone-50 dark:bg-stone-800 p-6 rounded-2xl border-2 border-dashed border-stone-200 dark:border-stone-700 relative group">
                   <span className="text-xs font-bold text-stone-400 uppercase tracking-widest block mb-2">Código de Invitación</span>
                   <div className="text-3xl font-black tracking-[0.2em] text-emerald-600 dark:text-emerald-400 font-mono">
-                    {user.group.invite_code}
+                    {user.group.invite_code || 'GENERANDO...'}
                   </div>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(user.group.invite_code);
-                      alert('Código copiado al portapapeles');
-                    }}
-                    className="mt-4 text-xs font-bold text-emerald-600 hover:underline flex items-center justify-center gap-1 mx-auto"
-                  >
-                    <Download size={14} />
-                    Copiar código
-                  </button>
+                  <div className="flex items-center justify-center gap-4 mt-4">
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(user.group.invite_code);
+                      }}
+                      className="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1"
+                    >
+                      <Download size={14} />
+                      Copiar código
+                    </button>
+                    {user.group.members.find(m => m.id === user.id)?.role === 'admin' && (
+                      <button 
+                        onClick={handleRegenerateCode}
+                        disabled={isRegenerating}
+                        className="text-xs font-bold text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <RefreshCw size={14} className={cn(isRegenerating && "animate-spin")} />
+                        {isRegenerating ? 'Generando...' : 'Regenerar'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 w-full">
