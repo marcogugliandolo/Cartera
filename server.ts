@@ -384,7 +384,7 @@ async function startServer() {
   });
 
   app.patch("/api/auth/profile", isAuthenticated, (req, res) => {
-    const { username, profile_image, theme_color } = req.body;
+    const { username, profile_image, theme_color, account_mode } = req.body;
     const userId = req.session.userId;
 
     try {
@@ -397,6 +397,9 @@ async function startServer() {
       }
       if (theme_color !== undefined) {
         db.prepare("UPDATE users SET theme_color = ? WHERE id = ?").run(theme_color, userId);
+      }
+      if (account_mode !== undefined) {
+        db.prepare("UPDATE users SET account_mode = ? WHERE id = ?").run(account_mode, userId);
       }
       
       res.json(getFullUserData(userId));

@@ -173,7 +173,7 @@ export default function App() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  const [profileData, setProfileData] = useState({ username: '', profile_image: '', theme_color: 'default' });
+  const [profileData, setProfileData] = useState({ username: '', profile_image: '', theme_color: 'default', account_mode: 'individual' });
   const [passwordData, setPasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
@@ -1200,7 +1200,7 @@ export default function App() {
                       value={loginData.username}
                       onChange={e => setLoginData({...loginData, username: e.target.value})}
                       placeholder="Tu nombre de usuario"
-                      className="w-full bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-0 focus:border-emerald-500 transition-all shadow-sm"
+                      className="w-full bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-2xl py-4 pl-12 pr-4 text-stone-900 dark:text-white focus:ring-0 focus:border-emerald-500 transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -1215,7 +1215,7 @@ export default function App() {
                       value={loginData.password}
                       onChange={e => setLoginData({...loginData, password: e.target.value})}
                       placeholder="••••••••"
-                      className="w-full bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-0 focus:border-emerald-500 transition-all shadow-sm"
+                      className="w-full bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-2xl py-4 pl-12 pr-4 text-stone-900 dark:text-white focus:ring-0 focus:border-emerald-500 transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -1464,7 +1464,7 @@ export default function App() {
                     <div className="p-2 space-y-1">
                       <button
                         onClick={() => {
-                          setProfileData({ username: user?.username || '', profile_image: user?.profile_image || '', theme_color: user?.theme_color || 'default' });
+                          setProfileData({ username: user?.username || '', profile_image: user?.profile_image || '', theme_color: user?.theme_color || 'default', account_mode: user?.account_mode || 'individual' });
                           setShowProfileModal(true);
                           setShowUserMenu(false);
                         }}
@@ -2343,6 +2343,26 @@ export default function App() {
                       onChange={e => setProfileData({...profileData, username: e.target.value})}
                       className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 px-6 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
                     />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Modo de Cuenta</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['individual', 'familiar', 'amigos'].map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setProfileData({...profileData, account_mode: mode})}
+                          className={`py-3 px-4 rounded-xl text-sm font-bold capitalize transition-all ${
+                            profileData.account_mode === mode 
+                              ? 'bg-emerald-600 text-white' 
+                              : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700'
+                          }`}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="space-y-4">
