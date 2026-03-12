@@ -39,7 +39,9 @@ import {
   Settings,
   GripHorizontal,
   Eye,
-  EyeOff
+  EyeOff,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -57,11 +59,11 @@ import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, subMonths, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Markdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
-import { cn, type Category, type Expense, type Goal, type RecurringExpense } from './lib/utils';
+import { cn, type Category, type Expense, type Goal, type RecurringExpense, type Notification } from './lib/utils';
 
 const getBrandLogo = (name: string): string | null => {
   if (!name) return null;
@@ -246,12 +248,18 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -386,6 +394,88 @@ export default function App() {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!user || loading) return;
+
+    const generatedNotifications: Notification[] = [];
+    const now = new Date();
+
+    // 1. Check Budgets (80% and 100%)
+    categories.forEach(cat => {
+      if (cat.budget <= 0) return;
+      
+      const spent = expenses
+        .filter(e => e.category_id === cat.id && parseISO(e.date).getMonth() === now.getMonth() && parseISO(e.date).getFullYear() === now.getFullYear())
+        .reduce((sum, e) => sum + e.amount, 0);
+      
+      const percentage = (spent / cat.budget) * 100;
+      
+      if (percentage >= 100) {
+        generatedNotifications.push({
+          id: `budget-100-${cat.id}`,
+          type: 'budget',
+          title: 'Presupuesto Excedido',
+          message: `Has superado el presupuesto de ${cat.name} (${spent.toLocaleString()}€ / ${cat.budget.toLocaleString()}€)`,
+          date: now.toISOString(),
+          read: false,
+          severity: 'error'
+        });
+      } else if (percentage >= 80) {
+        generatedNotifications.push({
+          id: `budget-80-${cat.id}`,
+          type: 'budget',
+          title: 'Presupuesto al 80%',
+          message: `Estás cerca de agotar el presupuesto de ${cat.name} (${spent.toLocaleString()}€ / ${cat.budget.toLocaleString()}€)`,
+          date: now.toISOString(),
+          read: false,
+          severity: 'warning'
+        });
+      }
+    });
+
+    // 2. Check Recurring Expenses (Upcoming in 3 days)
+    recurringExpenses.forEach(rec => {
+      const nextDate = parseISO(rec.next_date);
+      const daysUntil = differenceInDays(nextDate, now);
+      
+      if (daysUntil >= 0 && daysUntil <= 3) {
+        generatedNotifications.push({
+          id: `recurring-${rec.id}`,
+          type: 'recurring',
+          title: 'Próximo Cobro',
+          message: `En ${daysUntil === 0 ? 'hoy' : daysUntil === 1 ? 'mañana' : daysUntil + ' días'} se cobrará ${rec.description} (${rec.amount.toLocaleString()}€)`,
+          date: now.toISOString(),
+          read: false,
+          severity: 'info'
+        });
+      }
+    });
+
+    // 3. Check Goals (Almost reached or reached)
+    goals.forEach(goal => {
+      const percentage = (goal.current_amount / goal.target_amount) * 100;
+      if (percentage >= 100) {
+        generatedNotifications.push({
+          id: `goal-reached-${goal.id}`,
+          type: 'goal',
+          title: '¡Meta Alcanzada!',
+          message: `Has completado tu meta: ${goal.name}. ¡Felicidades!`,
+          date: now.toISOString(),
+          read: false,
+          severity: 'info'
+        });
+      }
+    });
+
+    // Only update if something changed (simple check)
+    setNotifications(prev => {
+      const isSameCount = prev.length === generatedNotifications.length;
+      const isSameContent = isSameCount && generatedNotifications.every((n, i) => n.id === prev[i].id);
+      if (isSameContent) return prev;
+      return generatedNotifications;
+    });
+  }, [expenses, categories, recurringExpenses, goals, user, loading]);
 
   useEffect(() => {
     if (user) {
@@ -1024,47 +1114,48 @@ export default function App() {
     }
   };
 
-  const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleScanReceipt = async (input: React.ChangeEvent<HTMLInputElement> | File) => {
+    const file = input instanceof File ? input : input.target.files?.[0];
     if (!file) return;
 
     setScanningReceipt(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64Data = (reader.result as string).split(',')[1];
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: [
-              {
-                parts: [
-                  { inlineData: { data: base64Data, mimeType: file.type } },
-                  { text: "Analiza este ticket y devuelve un JSON con: amount (número), description (texto corto), date (YYYY-MM-DD), category_name (una de: Comida, Transporte, Vivienda, Entretenimiento, Salud, Otros). Solo el JSON." }
-                ]
-              }
-            ],
-            config: { responseMimeType: "application/json" }
-          });
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-          const result = JSON.parse(response.text || '{}');
-          const category = categories.find(c => c.name.toLowerCase() === (result.category_name || '').toLowerCase()) || categories.find(c => c.name === 'Otros');
-          
-          setNewExpense({
-            amount: result.amount?.toString() || '',
-            description: result.description || 'Gasto escaneado',
-            date: result.date || format(new Date(), 'yyyy-MM-dd'),
-            category_id: category?.id.toString() || ''
-          });
-          setShowExpenseForm(true);
-        } catch (err) {
-          console.error("Error processing receipt:", err);
-        }
-      };
-      reader.readAsDataURL(file);
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            parts: [
+              { inlineData: { data: base64Data, mimeType: file.type } },
+              { text: "Analiza este ticket y devuelve un JSON con: amount (número), description (texto corto), date (YYYY-MM-DD), category_name (una de: Comida, Transporte, Vivienda, Entretenimiento, Salud, Otros). Solo el JSON." }
+            ]
+          }
+        ],
+        config: { responseMimeType: "application/json" }
+      });
+
+      const result = JSON.parse(response.text || '{}');
+      const category = categories.find(c => c.name.toLowerCase() === (result.category_name || '').toLowerCase()) || categories.find(c => c.name === 'Otros');
+      
+      setNewExpense({
+        amount: result.amount?.toString() || '',
+        description: result.description || 'Gasto escaneado',
+        date: result.date || format(new Date(), 'yyyy-MM-dd'),
+        category_id: category?.id.toString() || ''
+      });
+      setShowExpenseForm(true);
     } catch (err) {
-      console.error("Error reading file:", err);
+      console.error("Error processing receipt:", err);
     } finally {
       setScanningReceipt(false);
     }
@@ -1638,6 +1729,98 @@ export default function App() {
               <span className="hidden sm:inline">Nuevo Gasto</span>
             </button>
 
+            <div className="relative" ref={notificationsRef}>
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 bg-stone-100 dark:bg-stone-800 rounded-full hover:bg-stone-200 dark:hover:bg-stone-700 transition-all border border-transparent hover:border-stone-300 dark:hover:border-stone-600 relative h-[40px] w-[40px] flex items-center justify-center"
+              >
+                <Bell size={20} className="text-stone-600 dark:text-stone-400" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-stone-900">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-80 bg-white dark:bg-stone-900 rounded-2xl shadow-xl border border-stone-200 dark:border-stone-800 overflow-hidden z-50"
+                  >
+                    <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                      <h3 className="font-bold text-stone-900 dark:text-stone-100">Notificaciones</h3>
+                      <button 
+                        onClick={() => setNotifications(notifications.map(n => ({ ...n, read: true })))}
+                        className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        Marcar todo como leído
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <div className="w-12 h-12 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <BellOff size={20} className="text-stone-400" />
+                          </div>
+                          <p className="text-sm text-stone-500 dark:text-stone-400">No tienes notificaciones</p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-stone-100 dark:divide-stone-800">
+                          {notifications.map((notification) => (
+                            <div 
+                              key={notification.id} 
+                              onClick={() => {
+                                setNotifications(notifications.map(n => n.id === notification.id ? { ...n, read: true } : n));
+                              }}
+                              className={cn(
+                                "p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors cursor-pointer",
+                                !notification.read && "bg-emerald-50/30 dark:bg-emerald-900/10"
+                              )}
+                            >
+                              <div className="flex gap-3">
+                                <div className={cn(
+                                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                                  notification.severity === 'error' ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
+                                  notification.severity === 'warning' ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" :
+                                  "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                )}>
+                                  {notification.type === 'budget' ? <PieChartIcon size={16} /> :
+                                   notification.type === 'recurring' ? <Calendar size={16} /> :
+                                   <Target size={16} />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-bold text-stone-900 dark:text-stone-100">{notification.title}</p>
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setNotifications(notifications.filter(n => n.id !== notification.id));
+                                      }}
+                                      className="text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 transition-colors"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                  <p className="text-xs text-stone-600 dark:text-stone-400 mt-0.5 leading-relaxed">{notification.message}</p>
+                                  <p className="text-[10px] text-stone-400 dark:text-stone-500 mt-2">
+                                    {format(parseISO(notification.date), "d 'de' MMMM, HH:mm", { locale: es })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -1786,6 +1969,34 @@ export default function App() {
       )}
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+        {notifications.filter(n => !n.read).length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-4 rounded-2xl flex items-center justify-between gap-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Bell size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-stone-900 dark:text-stone-100">
+                  Tienes {notifications.filter(n => !n.read).length} notificaciones nuevas
+                </p>
+                <p className="text-xs text-stone-600 dark:text-stone-400">
+                  Revisa tus alertas de presupuesto y suscripciones.
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowNotifications(true)}
+              className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all"
+            >
+              Ver Alertas
+            </button>
+          </motion.div>
+        )}
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />

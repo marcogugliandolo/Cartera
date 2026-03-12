@@ -52,3 +52,13 @@ export interface Income {
   description: string;
   date: string;
 }
+
+export interface Notification {
+  id: string;
+  type: 'budget' | 'recurring' | 'goal';
+  title: string;
+  message: string;
+  date: string;
+  read: boolean;
+  severity: 'info' | 'warning' | 'error';
+}
