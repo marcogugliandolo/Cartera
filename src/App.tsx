@@ -1969,34 +1969,6 @@ export default function App() {
       )}
 
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-8">
-        {notifications.filter(n => !n.read).length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 p-4 rounded-2xl flex items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Bell size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-stone-900 dark:text-stone-100">
-                  Tienes {notifications.filter(n => !n.read).length} notificaciones nuevas
-                </p>
-                <p className="text-xs text-stone-600 dark:text-stone-400">
-                  Revisa tus alertas de presupuesto y suscripciones.
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setShowNotifications(true)}
-              className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all"
-            >
-              Ver Alertas
-            </button>
-          </motion.div>
-        )}
-
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
