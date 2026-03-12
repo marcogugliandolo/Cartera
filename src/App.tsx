@@ -36,7 +36,10 @@ import {
   ArrowRight,
   LayoutDashboard,
   Edit2,
-  Settings
+  Settings,
+  GripHorizontal,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -59,6 +62,60 @@ import { es } from 'date-fns/locale';
 import Markdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
 import { cn, type Category, type Expense, type Goal, type RecurringExpense } from './lib/utils';
+
+const getBrandLogo = (name: string): string | null => {
+  if (!name) return null;
+  const lowerName = name.toLowerCase();
+  const normalized = lowerName.replace(/[^a-z0-9]/g, '');
+  
+  const domains: Record<string, string> = {
+    netflix: 'netflix.com', spotify: 'spotify.com', amazon: 'amazon.com', primevideo: 'primevideo.com',
+    hbo: 'hbomax.com', hbomax: 'hbomax.com', max: 'max.com', disney: 'disneyplus.com',
+    disneyplus: 'disneyplus.com', apple: 'apple.com', appletv: 'apple.com', applemusic: 'apple.com',
+    youtube: 'youtube.com', youtubepremium: 'youtube.com', hulu: 'hulu.com', playstation: 'playstation.com',
+    psn: 'playstation.com', xbox: 'xbox.com', xboxgamepass: 'xbox.com', nintendo: 'nintendo.com',
+    nintendoswitchonline: 'nintendo.com', gympass: 'gympass.com', adobe: 'adobe.com',
+    microsoft: 'microsoft.com', google: 'google.com', googleone: 'google.com', chatgpt: 'openai.com',
+    openai: 'openai.com', github: 'github.com', aws: 'aws.amazon.com', vercel: 'vercel.com',
+    figma: 'figma.com', notion: 'notion.so', slack: 'slack.com', discord: 'discord.com',
+    canva: 'canva.com', dropbox: 'dropbox.com', zoom: 'zoom.us', crunchyroll: 'crunchyroll.com',
+    twitch: 'twitch.tv', patreon: 'patreon.com', onlyfans: 'onlyfans.com', tinder: 'tinder.com',
+    bumble: 'bumble.com', duolingo: 'duolingo.com', strava: 'strava.com', uber: 'uber.com',
+    ubereats: 'uber.com', cabify: 'cabify.com', didi: 'didiglobal.com', rappi: 'rappi.com',
+    pedidosya: 'pedidosya.com', glovo: 'glovoapp.com', justeat: 'justeat.com', deliveroo: 'deliveroo.co.uk',
+    starbucks: 'starbucks.com', mcdonalds: 'mcdonalds.com', burgerking: 'burgerking.com', kfc: 'kfc.com',
+    subway: 'subway.com', dominos: 'dominos.com', pizzahut: 'pizzahut.com', telepizza: 'telepizza.es',
+    vodafone: 'vodafone.com', orange: 'orange.com', movistar: 'movistar.es', o2: 'o2.co.uk',
+    yoigo: 'yoigo.com', pepephone: 'pepephone.com', simyo: 'simyo.es', lowi: 'lowi.es',
+    digi: 'digimobil.es', revolut: 'revolut.com', n26: 'n26.com', paypal: 'paypal.com',
+    klarna: 'klarna.com', mercadolibre: 'mercadolibre.com', mercadopago: 'mercadopago.com',
+    aliexpress: 'aliexpress.com', shein: 'shein.com', zara: 'zara.com', nike: 'nike.com',
+    adidas: 'adidas.com', puma: 'puma.com', ikea: 'ikea.com', decathlon: 'decathlon.com',
+    mediamarkt: 'mediamarkt.es', pccomponentes: 'pccomponentes.com', game: 'game.es', fnac: 'fnac.es',
+    elcorteingles: 'elcorteingles.es', carrefour: 'carrefour.es', alcampo: 'alcampo.es',
+    mercadona: 'mercadona.es', lidl: 'lidl.es', aldi: 'aldi.es', dia: 'dia.es', consum: 'consum.es',
+    eroski: 'eroski.es', walmart: 'walmart.com', target: 'target.com', bestbuy: 'bestbuy.com',
+    homedepot: 'homedepot.com', securitas: 'securitasdirect.es', prosegur: 'prosegur.es',
+    mapfre: 'mapfre.es', allianz: 'allianz.es', axa: 'axa.es', sanitas: 'sanitas.es',
+    adeslas: 'adeslas.es', asisa: 'asisa.es', dkv: 'dkvseguros.com', stripe: 'stripe.com',
+    shopify: 'shopify.com', mailchimp: 'mailchimp.com', salesforce: 'salesforce.com',
+    icloud: 'icloud.com', outlook: 'outlook.com', gmail: 'gmail.com', midjourney: 'midjourney.com',
+    anthropic: 'anthropic.com', claude: 'anthropic.com', perplexity: 'perplexity.ai', dazn: 'dazn.com',
+    filmin: 'filmin.es', sky: 'sky.com', skyshowtime: 'skyshowtime.com', paramount: 'paramountplus.com',
+    peacock: 'peacocktv.com', vimeo: 'vimeo.com', soundcloud: 'soundcloud.com', tidal: 'tidal.com',
+    deezer: 'deezer.com', audible: 'audible.com', kindle: 'amazon.com', storytel: 'storytel.com',
+    blinkist: 'blinkist.com', medium: 'medium.com', nytimes: 'nytimes.com', wsj: 'wsj.com',
+    washingtonpost: 'washingtonpost.com'
+  };
+
+  for (const [key, domain] of Object.entries(domains)) {
+    const regex = new RegExp(`\\b${key}\\b`, 'i');
+    if (regex.test(lowerName) || normalized === key) {
+      return `https://logo.clearbit.com/${domain}`;
+    }
+  }
+  return null;
+};
 
 const ICON_MAP: Record<string, any> = {
   Utensils,
@@ -178,6 +235,9 @@ export default function App() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '', account_mode: 'individual' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSettingsPassword, setShowSettingsPassword] = useState(false);
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -1142,11 +1202,17 @@ export default function App() {
       byCategory[r.category_name] = (byCategory[r.category_name] || 0) + r.amount;
     });
 
-    const emeraldShades = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'];
+    const themeShades = [
+      'var(--color-emerald-600, #059669)', 
+      'var(--color-emerald-500, #10b981)', 
+      'var(--color-emerald-400, #34d399)', 
+      'var(--color-emerald-300, #6ee7b7)', 
+      'var(--color-emerald-200, #a7f3d0)'
+    ];
     const chartData = Object.entries(byCategory).map(([name, value], index) => ({
       name,
       value,
-      color: emeraldShades[index % emeraldShades.length]
+      color: themeShades[index % themeShades.length]
     }));
 
     return { total, chartData };
@@ -1271,13 +1337,20 @@ export default function App() {
                   <div className="relative group">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
                     <input 
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       value={loginData.password}
                       onChange={e => setLoginData({...loginData, password: e.target.value})}
                       placeholder="••••••••"
-                      className="w-full bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-2xl py-4 pl-12 pr-4 text-stone-900 dark:text-white focus:ring-0 focus:border-emerald-500 transition-all shadow-sm"
+                      className="w-full bg-white dark:bg-stone-900 border-2 border-stone-100 dark:border-stone-800 rounded-2xl py-4 pl-12 pr-12 text-stone-900 dark:text-white focus:ring-0 focus:border-emerald-500 transition-all shadow-sm"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-500 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                   </div>
                 </div>
 
@@ -1736,7 +1809,7 @@ export default function App() {
               {/* Summary Total */}
               <div key="summary-total" className="bg-emerald-600 dark:bg-emerald-700 p-5 rounded-3xl shadow-lg hover:shadow-xl transition-shadow flex flex-col justify-center relative">
                 <div className="drag-handle cursor-move absolute top-2 right-2 p-2 text-emerald-200 hover:text-white z-10">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 bg-emerald-500/30 text-white rounded-xl">
@@ -1751,7 +1824,7 @@ export default function App() {
               {/* Summary Month */}
               <div key="summary-month" className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-3xl border border-emerald-200/30 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center relative">
                 <div className="drag-handle cursor-move absolute top-2 right-2 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
@@ -1768,7 +1841,7 @@ export default function App() {
               {/* Summary Goals */}
               <div key="summary-goals" className="bg-emerald-50/50 dark:bg-emerald-950/10 p-5 rounded-3xl border border-emerald-200/30 dark:border-emerald-800/30 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center relative">
                 <div className="drag-handle cursor-move absolute top-2 right-2 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-xl">
@@ -1783,7 +1856,7 @@ export default function App() {
               {/* Charts Card */}
               <div key="charts" className="bg-white/60 dark:bg-stone-900/60 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/40 dark:border-stone-800/40 shadow-xl shadow-stone-200/20 dark:shadow-none hover:border-emerald-500/30 transition-all duration-500 flex flex-col h-full overflow-hidden relative">
                 <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 pr-12">
                   <div>
@@ -1895,14 +1968,14 @@ export default function App() {
                               backgroundColor: darkMode ? '#1c1917' : '#ffffff',
                               color: darkMode ? '#f5f5f4' : '#1c1917'
                             }}
-                            itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#059669' }}
+                            itemStyle={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-emerald-600, #059669)' }}
                             labelStyle={{ fontSize: '10px', fontWeight: 'bold', color: darkMode ? '#78716c' : '#a8a29e', marginBottom: '4px' }}
                             labelFormatter={(label, payload) => payload[0]?.payload?.fullDate || label}
                             formatter={(value: number) => [`${value.toLocaleString()}€`, 'Gasto']}
                           />
                           <Bar 
                             dataKey="total" 
-                            fill="#10b981" 
+                            fill="var(--color-emerald-500, #10b981)" 
                             radius={[6, 6, 6, 6]} 
                             barSize={24}
                           />
@@ -1916,7 +1989,7 @@ export default function App() {
               {/* Savings Goals */}
               <div key="goals" className="space-y-4 h-full overflow-y-auto custom-scrollbar relative pr-2">
                 <div className="drag-handle cursor-move absolute top-0 right-0 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex items-center justify-between px-2 pr-12">
                   <h3 className="text-xl font-bold tracking-tight text-stone-900 dark:text-stone-100">Metas de Ahorro</h3>
@@ -2003,7 +2076,7 @@ export default function App() {
               {/* Budgets */}
               <div key="budgets" className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-stone-200/60 dark:border-stone-800 shadow-sm h-full overflow-y-auto custom-scrollbar relative">
                 <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex items-center justify-between mb-8 pr-12">
                   <div>
@@ -2027,7 +2100,7 @@ export default function App() {
                       <div key={cat.id} className="space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color === '#10b981' ? 'var(--color-emerald-500)' : cat.color }} />
                             <span className="text-sm font-bold text-stone-700 dark:text-stone-300">{cat.name}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2066,7 +2139,7 @@ export default function App() {
               {/* Recurring Expenses */}
               <div key="recurring" className="bg-white dark:bg-stone-900 p-8 rounded-[2rem] border border-stone-200/60 dark:border-stone-800 shadow-sm h-full overflow-y-auto custom-scrollbar relative">
                 <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex items-center justify-between mb-8 pr-12">
                   <div>
@@ -2084,11 +2157,27 @@ export default function App() {
                 <div className="space-y-4">
                   {recurringExpenses.length > 0 ? recurringExpenses.map(rec => {
                     const Icon = ICON_MAP[rec.category_icon] || MoreHorizontal;
+                    const brandLogo = getBrandLogo(rec.description || rec.category_name);
                     return (
                       <div key={rec.id} className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
                         <div className="flex items-center gap-4">
-                          <div className="p-2.5 rounded-xl text-white" style={{ backgroundColor: rec.category_color }}>
-                            <Icon size={18} />
+                          <div className="p-2.5 rounded-xl text-white relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: brandLogo ? '#ffffff' : (rec.category_color === '#10b981' ? 'var(--color-emerald-500)' : rec.category_color) }}>
+                            {brandLogo && (
+                              <img 
+                                src={brandLogo} 
+                                alt={rec.description} 
+                                className="absolute inset-0 w-full h-full object-contain p-1.5" 
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.parentElement) {
+                                    e.currentTarget.parentElement.style.backgroundColor = rec.category_color === '#10b981' ? 'var(--color-emerald-500)' : rec.category_color;
+                                    const iconEl = e.currentTarget.parentElement.querySelector('svg');
+                                    if (iconEl) iconEl.style.display = 'block';
+                                  }
+                                }} 
+                              />
+                            )}
+                            <Icon size={18} style={{ display: brandLogo ? 'none' : 'block' }} />
                           </div>
                           <div>
                             <div className="font-bold text-sm text-stone-900 dark:text-stone-100">{rec.description}</div>
@@ -2123,7 +2212,7 @@ export default function App() {
               {/* Sidebar Area */}
               <div key="sidebar" className="bg-white/80 dark:bg-stone-900/80 backdrop-blur-md p-6 rounded-[2rem] border border-stone-200/50 dark:border-stone-800/50 shadow-lg shadow-stone-200/20 dark:shadow-none flex flex-col h-full relative">
                 <div className="drag-handle cursor-move absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 z-10 bg-white/50 dark:bg-stone-800/50 rounded-xl backdrop-blur-sm">
-                  <MoreHorizontal size={20} />
+                  <GripHorizontal size={20} />
                 </div>
                 <div className="flex flex-col gap-4 mb-6 pr-12">
                   <div className="flex items-center justify-between">
@@ -2198,6 +2287,7 @@ export default function App() {
                 <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
                   {filteredExpenses.length > 0 ? filteredExpenses.map(expense => {
                     const Icon = ICON_MAP[expense.category_icon] || MoreHorizontal;
+                    const brandLogo = getBrandLogo(expense.description || expense.category_name);
                     return (
                       <motion.div 
                         layout
@@ -2206,10 +2296,25 @@ export default function App() {
                       >
                         <div className="flex items-center gap-4">
                           <div 
-                            className="p-3 rounded-2xl text-white shadow-sm"
-                            style={{ backgroundColor: expense.category_color }}
+                            className="p-3 rounded-2xl text-white shadow-sm relative flex items-center justify-center overflow-hidden"
+                            style={{ backgroundColor: brandLogo ? '#ffffff' : (expense.category_color === '#10b981' ? 'var(--color-emerald-500)' : expense.category_color) }}
                           >
-                            <Icon size={18} />
+                            {brandLogo && (
+                              <img 
+                                src={brandLogo} 
+                                alt={expense.description || expense.category_name} 
+                                className="absolute inset-0 w-full h-full object-contain p-1.5" 
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.parentElement) {
+                                    e.currentTarget.parentElement.style.backgroundColor = expense.category_color === '#10b981' ? 'var(--color-emerald-500)' : expense.category_color;
+                                    const iconEl = e.currentTarget.parentElement.querySelector('svg');
+                                    if (iconEl) iconEl.style.display = 'block';
+                                  }
+                                }} 
+                              />
+                            )}
+                            <Icon size={18} style={{ display: brandLogo ? 'none' : 'block' }} />
                           </div>
                           <div className="min-w-0">
                             <div className="font-bold text-sm text-stone-800 dark:text-stone-200 truncate">{expense.description || expense.category_name}</div>
@@ -2488,7 +2593,10 @@ export default function App() {
                         {user.account_mode !== 'individual' && (
                           <button 
                             type="button"
-                            onClick={() => alert('La función de invitar miembros estará disponible próximamente.')}
+                            onClick={() => {
+                              setShowInviteModal(true);
+                              setShowProfileModal(false);
+                            }}
                             className={cn(
                               "text-xs px-3 py-1.5 rounded-full transition-colors",
                               user.account_mode === 'familiar' ? "bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/50" :
@@ -2517,35 +2625,62 @@ export default function App() {
                   
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Contraseña Actual</label>
-                    <input 
-                      type="password"
-                      required
-                      value={passwordData.oldPassword}
-                      onChange={e => setPasswordData({...passwordData, oldPassword: e.target.value})}
-                      className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 px-6 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showSettingsPassword ? "text" : "password"}
+                        required
+                        value={passwordData.oldPassword}
+                        onChange={e => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                        className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 pl-6 pr-12 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSettingsPassword(!showSettingsPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-500 transition-colors"
+                      >
+                        {showSettingsPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Nueva Contraseña</label>
-                    <input 
-                      type="password"
-                      required
-                      value={passwordData.newPassword}
-                      onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
-                      className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 px-6 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showSettingsPassword ? "text" : "password"}
+                        required
+                        value={passwordData.newPassword}
+                        onChange={e => setPasswordData({...passwordData, newPassword: e.target.value})}
+                        className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 pl-6 pr-12 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSettingsPassword(!showSettingsPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-500 transition-colors"
+                      >
+                        {showSettingsPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest ml-1">Confirmar Nueva Contraseña</label>
-                    <input 
-                      type="password"
-                      required
-                      value={passwordData.confirmPassword}
-                      onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                      className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 px-6 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showSettingsPassword ? "text" : "password"}
+                        required
+                        value={passwordData.confirmPassword}
+                        onChange={e => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                        className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-2xl py-4 pl-6 pr-12 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSettingsPassword(!showSettingsPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-500 transition-colors"
+                      >
+                        {showSettingsPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
                   </div>
 
                   {passwordError && (
@@ -2983,13 +3118,22 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-1">Contraseña</label>
-                  <input 
-                    type="password" 
-                    required
-                    value={newUser.password}
-                    onChange={e => setNewUser({...newUser, password: e.target.value})}
-                    className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-xl p-4 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showNewUserPassword ? "text" : "password"} 
+                      required
+                      value={newUser.password}
+                      onChange={e => setNewUser({...newUser, password: e.target.value})}
+                      className="w-full bg-stone-50 dark:bg-stone-800 border-none rounded-xl py-4 pl-4 pr-12 text-stone-900 dark:text-stone-100 focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-500 transition-colors"
+                    >
+                      {showNewUserPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button 
@@ -3195,13 +3339,20 @@ export default function App() {
                     <div className="relative group">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
                       <input 
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         required
                         value={loginData.password}
                         onChange={e => setLoginData({...loginData, password: e.target.value})}
                         placeholder="••••••••"
-                        className="w-full bg-stone-50 dark:bg-stone-950 border-2 border-transparent focus:border-emerald-500 rounded-2xl py-3.5 pl-11 pr-4 text-stone-900 dark:text-white transition-all text-sm"
+                        className="w-full bg-stone-50 dark:bg-stone-950 border-2 border-transparent focus:border-emerald-500 rounded-2xl py-3.5 pl-11 pr-11 text-stone-900 dark:text-white transition-all text-sm"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-emerald-500 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
                     </div>
                   </div>
 

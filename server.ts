@@ -200,13 +200,28 @@ async function startServer() {
   // Helper to get full user data with group info
   const getFullUserData = (userId: number) => {
     const user = db.prepare("SELECT id, username, profile_image, account_mode, theme_color FROM users WHERE id = ?").get(userId) as any;
-    if (user) {
-      const group = db.prepare(`
+    if (user && user.account_mode !== 'individual') {
+      let group = db.prepare(`
         SELECT g.* FROM groups g
         JOIN group_members gm ON g.id = gm.group_id
-        WHERE gm.user_id = ?
-      `).get(user.id) as any;
+        WHERE gm.user_id = ? AND g.type = ?
+      `).get(user.id, user.account_mode) as any;
       
+      // Auto-create group if missing for the current mode
+      if (!group) {
+        const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const groupName = user.account_mode === 'familiar' ? `Familia de ${user.username}` : `Amigos de ${user.username}`;
+        const groupResult = db.prepare("INSERT INTO groups (name, type, created_by, invite_code) VALUES (?, ?, ?, ?)").run(groupName, user.account_mode, user.id, inviteCode);
+        const groupId = groupResult.lastInsertRowid as number;
+        db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)").run(groupId, user.id, 'admin');
+        
+        group = db.prepare(`
+          SELECT g.* FROM groups g
+          JOIN group_members gm ON g.id = gm.group_id
+          WHERE gm.user_id = ? AND g.type = ?
+        `).get(user.id, user.account_mode) as any;
+      }
+
       if (group) {
         user.group = group;
         user.group.members = db.prepare(`
@@ -217,6 +232,21 @@ async function startServer() {
       }
     }
     return user;
+  };
+
+  // Helper to get active group ID based on account mode
+  const getActiveGroupId = (userId: number) => {
+    const user = db.prepare("SELECT account_mode FROM users WHERE id = ?").get(userId) as any;
+    if (!user || user.account_mode === 'individual') return null;
+    
+    // If familiar or amigos, find the group they are in
+    const group = db.prepare(`
+      SELECT g.id FROM groups g
+      JOIN group_members gm ON g.id = gm.group_id
+      WHERE gm.user_id = ? AND g.type = ?
+    `).get(userId, user.account_mode) as any;
+    
+    return group ? group.id : null;
   };
 
   // Auth Routes
@@ -388,19 +418,21 @@ async function startServer() {
     const userId = req.session.userId;
 
     try {
-      if (username) {
-        db.prepare("UPDATE users SET username = ? WHERE id = ?").run(username, userId);
-        req.session.username = username;
-      }
-      if (profile_image !== undefined) {
-        db.prepare("UPDATE users SET profile_image = ? WHERE id = ?").run(profile_image, userId);
-      }
-      if (theme_color !== undefined) {
-        db.prepare("UPDATE users SET theme_color = ? WHERE id = ?").run(theme_color, userId);
-      }
-      if (account_mode !== undefined) {
-        db.prepare("UPDATE users SET account_mode = ? WHERE id = ?").run(account_mode, userId);
-      }
+      db.transaction(() => {
+        if (username) {
+          db.prepare("UPDATE users SET username = ? WHERE id = ?").run(username, userId);
+          req.session.username = username;
+        }
+        if (profile_image !== undefined) {
+          db.prepare("UPDATE users SET profile_image = ? WHERE id = ?").run(profile_image, userId);
+        }
+        if (theme_color !== undefined) {
+          db.prepare("UPDATE users SET theme_color = ? WHERE id = ?").run(theme_color, userId);
+        }
+        if (account_mode !== undefined) {
+          db.prepare("UPDATE users SET account_mode = ? WHERE id = ?").run(account_mode, userId);
+        }
+      })();
       
       res.json(getFullUserData(userId));
     } catch (err: any) {
@@ -577,22 +609,29 @@ async function startServer() {
   // API Routes
   app.get("/api/categories", isAuthenticated, (req, res) => {
     const userId = req.session.userId;
-    const categories = db.prepare(`
-      SELECT * FROM categories 
-      WHERE user_id IS NULL 
-      OR user_id = ? 
-      OR group_id IN (SELECT group_id FROM group_members WHERE user_id = ?)
-    `).all(userId, userId);
+    const activeGroupId = getActiveGroupId(userId);
+    
+    let categories;
+    if (activeGroupId) {
+      categories = db.prepare(`
+        SELECT * FROM categories 
+        WHERE user_id IS NULL 
+        OR group_id = ?
+      `).all(activeGroupId);
+    } else {
+      categories = db.prepare(`
+        SELECT * FROM categories 
+        WHERE user_id IS NULL 
+        OR (user_id = ? AND group_id IS NULL)
+      `).all(userId);
+    }
     res.json(categories);
   });
 
   app.post("/api/categories", isAuthenticated, (req, res) => {
     const { name, icon, color } = req.body;
     const userId = req.session.userId;
-    
-    // Get user's group if any
-    const group = db.prepare("SELECT group_id FROM group_members WHERE user_id = ?").get(userId) as any;
-    const groupId = group ? group.group_id : null;
+    const groupId = getActiveGroupId(userId);
 
     try {
       const result = db.prepare("INSERT INTO categories (name, icon, color, user_id, group_id) VALUES (?, ?, ?, ?, ?)")
@@ -609,25 +648,37 @@ async function startServer() {
 
   app.get("/api/expenses", isAuthenticated, (req, res) => {
     const userId = req.session.userId;
-    const expenses = db.prepare(`
-      SELECT e.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
-             u.username as author_name, u.profile_image as author_image
-      FROM expenses e 
-      LEFT JOIN categories c ON e.category_id = c.id
-      LEFT JOIN users u ON e.user_id = u.id
-      WHERE e.user_id = ? OR e.group_id IN (SELECT group_id FROM group_members WHERE user_id = ?)
-      ORDER BY date DESC
-    `).all(userId, userId);
+    const activeGroupId = getActiveGroupId(userId);
+    
+    let expenses;
+    if (activeGroupId) {
+      expenses = db.prepare(`
+        SELECT e.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+               u.username as author_name, u.profile_image as author_image
+        FROM expenses e 
+        LEFT JOIN categories c ON e.category_id = c.id
+        LEFT JOIN users u ON e.user_id = u.id
+        WHERE e.group_id = ?
+        ORDER BY date DESC
+      `).all(activeGroupId);
+    } else {
+      expenses = db.prepare(`
+        SELECT e.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+               u.username as author_name, u.profile_image as author_image
+        FROM expenses e 
+        LEFT JOIN categories c ON e.category_id = c.id
+        LEFT JOIN users u ON e.user_id = u.id
+        WHERE e.user_id = ? AND e.group_id IS NULL
+        ORDER BY date DESC
+      `).all(userId);
+    }
     res.json(expenses);
   });
 
   app.post("/api/expenses", isAuthenticated, (req, res) => {
     const { amount, description, date, category_id } = req.body;
     const userId = req.session.userId;
-    
-    // Get user's group if any
-    const group = db.prepare("SELECT group_id FROM group_members WHERE user_id = ?").get(userId) as any;
-    const groupId = group ? group.group_id : null;
+    const groupId = getActiveGroupId(userId);
 
     const result = db.prepare("INSERT INTO expenses (amount, description, date, category_id, user_id, group_id) VALUES (?, ?, ?, ?, ?, ?)")
       .run(amount, description, date, category_id, userId, groupId);
@@ -657,21 +708,27 @@ async function startServer() {
 
   app.get("/api/goals", isAuthenticated, (req, res) => {
     const userId = req.session.userId;
-    const goals = db.prepare(`
-      SELECT * FROM goals 
-      WHERE user_id = ? 
-      OR group_id IN (SELECT group_id FROM group_members WHERE user_id = ?)
-    `).all(userId, userId);
+    const activeGroupId = getActiveGroupId(userId);
+    
+    let goals;
+    if (activeGroupId) {
+      goals = db.prepare(`
+        SELECT * FROM goals 
+        WHERE group_id = ?
+      `).all(activeGroupId);
+    } else {
+      goals = db.prepare(`
+        SELECT * FROM goals 
+        WHERE user_id = ? AND group_id IS NULL
+      `).all(userId);
+    }
     res.json(goals);
   });
 
   app.post("/api/goals", isAuthenticated, (req, res) => {
     const { name, target_amount, deadline } = req.body;
     const userId = req.session.userId;
-    
-    // Get user's group if any
-    const group = db.prepare("SELECT group_id FROM group_members WHERE user_id = ?").get(userId) as any;
-    const groupId = group ? group.group_id : null;
+    const groupId = getActiveGroupId(userId);
 
     const result = db.prepare("INSERT INTO goals (name, target_amount, deadline, user_id, group_id) VALUES (?, ?, ?, ?, ?)")
       .run(name, target_amount, deadline, userId, groupId);
@@ -686,6 +743,17 @@ async function startServer() {
       WHERE id = ? 
       AND (user_id = ? OR group_id IN (SELECT group_id FROM group_members WHERE user_id = ?))
     `).run(name, target_amount, current_amount, deadline, req.params.id, userId, userId);
+    res.json({ success: true });
+  });
+
+  app.patch("/api/goals/:id", isAuthenticated, (req, res) => {
+    const { current_amount } = req.body;
+    const userId = req.session.userId;
+    db.prepare(`
+      UPDATE goals SET current_amount = ? 
+      WHERE id = ? 
+      AND (user_id = ? OR group_id IN (SELECT group_id FROM group_members WHERE user_id = ?))
+    `).run(current_amount, req.params.id, userId, userId);
     res.json({ success: true });
   });
 
@@ -712,22 +780,31 @@ async function startServer() {
 
   app.get("/api/recurring", isAuthenticated, (req, res) => {
     const userId = req.session.userId;
-    const recurring = db.prepare(`
-      SELECT r.*, c.name as category_name, c.icon as category_icon, c.color as category_color 
-      FROM recurring_expenses r 
-      LEFT JOIN categories c ON r.category_id = c.id
-      WHERE r.user_id = ? OR r.group_id IN (SELECT group_id FROM group_members WHERE user_id = ?)
-    `).all(userId, userId);
+    const activeGroupId = getActiveGroupId(userId);
+    
+    let recurring;
+    if (activeGroupId) {
+      recurring = db.prepare(`
+        SELECT r.*, c.name as category_name, c.icon as category_icon, c.color as category_color 
+        FROM recurring_expenses r 
+        LEFT JOIN categories c ON r.category_id = c.id
+        WHERE r.group_id = ?
+      `).all(activeGroupId);
+    } else {
+      recurring = db.prepare(`
+        SELECT r.*, c.name as category_name, c.icon as category_icon, c.color as category_color 
+        FROM recurring_expenses r 
+        LEFT JOIN categories c ON r.category_id = c.id
+        WHERE r.user_id = ? AND r.group_id IS NULL
+      `).all(userId);
+    }
     res.json(recurring);
   });
 
   app.post("/api/recurring", isAuthenticated, (req, res) => {
     const { amount, description, category_id, frequency, next_date } = req.body;
     const userId = req.session.userId;
-    
-    // Get user's group if any
-    const group = db.prepare("SELECT group_id FROM group_members WHERE user_id = ?").get(userId) as any;
-    const groupId = group ? group.group_id : null;
+    const groupId = getActiveGroupId(userId);
 
     const result = db.prepare("INSERT INTO recurring_expenses (amount, description, category_id, frequency, next_date, user_id, group_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .run(amount, description, category_id, frequency, next_date, userId, groupId);
@@ -756,12 +833,27 @@ async function startServer() {
   });
 
   app.get("/api/expenses/export", isAuthenticated, (req, res) => {
-    const expenses = db.prepare(`
-      SELECT e.date, e.amount, e.description, c.name as category
-      FROM expenses e 
-      LEFT JOIN categories c ON e.category_id = c.id
-      ORDER BY date DESC
-    `).all() as any[];
+    const userId = req.session.userId;
+    const activeGroupId = getActiveGroupId(userId);
+    
+    let expenses;
+    if (activeGroupId) {
+      expenses = db.prepare(`
+        SELECT e.date, e.amount, e.description, c.name as category
+        FROM expenses e 
+        LEFT JOIN categories c ON e.category_id = c.id
+        WHERE e.group_id = ?
+        ORDER BY date DESC
+      `).all(activeGroupId) as any[];
+    } else {
+      expenses = db.prepare(`
+        SELECT e.date, e.amount, e.description, c.name as category
+        FROM expenses e 
+        LEFT JOIN categories c ON e.category_id = c.id
+        WHERE e.user_id = ? AND e.group_id IS NULL
+        ORDER BY date DESC
+      `).all(userId) as any[];
+    }
     
     const headers = ["Fecha", "Importe", "Descripción", "Categoría"];
     const rows = expenses.map(e => [e.date, e.amount, e.description || "", e.category || "Sin categoría"]);
