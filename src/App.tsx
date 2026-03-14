@@ -2411,7 +2411,7 @@ export default function App() {
                     return (
                       <div key={rec.id} className="flex items-center justify-between p-4 bg-stone-50 dark:bg-stone-800/50 rounded-2xl border border-stone-100 dark:border-stone-800">
                         <div className="flex items-center gap-4">
-                          <div className="p-2.5 rounded-xl text-white relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: brandLogo ? '#ffffff' : (rec.category_color === '#10b981' ? 'var(--color-emerald-500)' : rec.category_color) }}>
+                          <div className="w-10 h-10 shrink-0 p-2.5 rounded-xl text-white relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: brandLogo ? '#ffffff' : (rec.category_color === '#10b981' ? 'var(--color-emerald-500)' : rec.category_color) }}>
                             {brandLogo && (
                               <img 
                                 src={`${brandLogo}?fallback=false`} 
